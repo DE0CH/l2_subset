@@ -1,0 +1,73 @@
+// explanation: more or less c syntax, // is comment, block starting with $ is vague natrual langauge
+typedef long long ll;
+
+struct weights {
+    n: ll, // nxn matrix
+    entries: 2D matrix n by n, 
+    point_weight: 1D array of length n,
+    active_points: linked list
+}
+
+struct linked_list {
+    ...
+}
+
+double get_weight(struct weights w, size_t i, size_t j) {
+    return w.entries[i * w.n + j];
+}
+
+void replace_points(struct weight w, size_t dest, size_t src) { // remove point at dest and add point at src
+    remove_point(w, dest);
+    add_point(w, src);
+}
+
+void add_point(struct weights w, size_t src) {
+    for i in w.active_points {
+        w.point_weight[i] += get_weight(w, i, src) + get_weight(w, src, i);
+    }
+    $ add src to linked list
+    w.point_weight[src] = 0
+    for i in w.active_points {
+        w.point_weight[src] += get_weight(w, i, src) + get_weight(w, src, i);
+    }
+#if SLOW_DEBUG
+    $ copy w.active_points to a new list
+    recalculate_active_weights(w)
+    $ compare if the new list is equal to w.active_points
+#endif
+}
+
+void remove_point(struct weights w, size_t dest) {
+    for i in w.active_points {
+        w.point_weight[i] -= get_weight(w, i, dest) + get_weight(w, dest, i);
+    }
+    $ remove dest from linked list
+#if SLOW_DEBUG
+    $ copy w.active_points to a new list
+    recalculate_active_weights(w)
+    $ compare if the new list is equal to w.active_points
+#endif
+}
+
+void largest_active_point(struct weights w) {
+    size_t max = 0;
+    for i in w.active_points {
+        if (w.point_weight[i] > w.point_weight[max]) {
+            max = i;
+        }
+    }
+    return max;
+}
+
+void recalculate_active_weights(struct weights w) {
+    for i in w.active_points {
+        w.point_weight[i] = 0;
+        for j in w.active_points {
+            w.point_weight[i] += get_weight(w, i, j);
+        }
+    }
+}
+
+int main() {
+    
+}
