@@ -2,10 +2,13 @@
 typedef long long ll;
 
 struct weights {
-    n: ll, // nxn matrix
-    entries: 2D matrix n by n, 
-    point_weight: 1D array of length n,
-    active_points: linked list
+    size_t n, // nxn matrix
+    double *entries, // 2D array n by n 
+    double active_point_weight, // 1D array of length n
+    double active_point_sum, // sum of weights of active points
+    double inactive_point_weight, // 1D array of length n, weight of point if the active points include it
+    struct linked_list active_points,
+    struct linked_list inactive_points,
 }
 
 struct linked_list {
@@ -23,36 +26,49 @@ void replace_points(struct weights *w, size_t dest, size_t src) { // remove poin
 
 void add_point(struct weights *w, size_t src) {
     for i in w->active_points {
-        w->point_weight[i] += get_weight(w, i, src) + get_weight(w, src, i);
+        double change = get_weight(w, i, src) + get_weight(w, src, i)
+        w->active_point_weight[i] += change;
+        w->active_point_sum += change;
     }
-    $ add src to linked list
-    w->point_weight[src] = 0
-    for i in w->active_points {
-        w->point_weight[src] += get_weight(w, i, src) + get_weight(w, src, i);
+    $ add src to active_points
+    $ remove src from inactive_points
+    w->active_point_sum += w->inactive_point_weight[src];
+    for i in w->inactive_points {
+        w->inactive_point_weight[i] += get_weight(w, i, src) + get_weight(w, src, i);
     }
+    
 #if SLOW_DEBUG
     $ copy w->active_points to a new list
     recalculate_active_weights(w)
     $ compare if the new list is equal to w->active_points
+    $ do the same for inactive_points and active_point_sum
 #endif
 }
 
 void remove_point(struct weights *w, size_t dest) {
     for i in w->active_points {
-        w->point_weight[i] -= get_weight(w, i, dest) + get_weight(w, dest, i);
+        double change = get_weight(w, i, dest) + get_weight(w, dest, i);
+        w->active_point_weight[i] -= change;
+        w->active_point_sum -= change;
     }
-    $ remove dest from linked list
+    $ remove dest from active_points
+    $ add dest to inactive_points
+    w->active_point_sum -= w->active_point_weight[dest];
+    for i in w->inactive_points {
+        w->inactive_point_weight[i] -= get_weight(w, i, dest) + get_weight(w, dest, i);
+    }
 #if SLOW_DEBUG
     $ copy w->active_points to a new list
     recalculate_active_weights(w)
     $ compare if the new list is equal to w->active_points
+    $ do the same for inactive_points and active_point_sum
 #endif
 }
 
 size_t largest_active_point(struct weights *w) {
     size_t max = 0;
     for i in w->active_points {
-        if (w->point_weight[i] > w->point_weight[max]) {
+        if (w->active_point_weight[i] > w->active_point_weight[max]) {
             max = i;
         }
     }
@@ -61,13 +77,105 @@ size_t largest_active_point(struct weights *w) {
 
 void recalculate_active_weights(struct weights *w) {
     for i in w->active_points {
-        w->point_weight[i] = 0;
+        w->active_point_weight[i] = 0;
         for j in w->active_points {
-            w->point_weight[i] += get_weight(w, i, j);
+            w->active_point_weight[i] += get_weight(w, i, j) + get_weight(w, j, i);
         }
+    }
+    for i in w->inactive_points {
+        w->inactive_point_weight[i] = 0;
+        for j in w->active_points {
+            w->inactive_point_weight[i] += get_weight(w, i, j) + get_weight(w, j, i);
+        }
+        w->inactive_point_weight[i] += 2 * get_weight(w, i, i);
+    }
+    $ sum all active_point_weight to active_point_sum
+}
+
+double w_ij(double* X, int i, int j, int d, int m, int n) {
+    if (i == j) {
+        double prod1 = 1.0;
+        double prod2 = 1.0;
+        for (int h = 0; h < d; h++) {
+            prod1 *= (1 - pow(X[i * n + h], 2));
+            prod2 *= (1 - X[i * n + h]);
+        }
+        return -pow(2, 1-d) / (2.0 * m) * prod1 + 1.0 / (2.0 * m * m) * prod2;
+    } else {
+        double prod = 1.0;
+        for (int h = 0; h < d; h++) {
+            prod *= min(1 - X[i * n + h], 1 - X[j * n + h]);
+        }
+        return prod / (m * m);
     }
 }
 
+void weights_alloc(struct weights *w, int n) {
+    w->n = n;
+    w->entries = malloc(n * n * sizeof(double));
+    w->active_point_weight = malloc(n * sizeof(double));
+    w->active_points = $ allocate empty linked list with n capacity;
+    w->inactive_point_weight = malloc(n * sizeof(double));
+    w->inactive_points = $ allocate empty linked list with n capacity;
+}
+
+void weights_free(struct weights *w) {
+    ...
+}
+
+double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point) {
+    return w->inactive_point_weight[inactive_point] - get_weight(w, inactive_point, active_point) - get_weight(w, active_point, inactive_point);
+}
+
+void process_points(struct weights *w, double *points, int d, int m, int n) {
+    for i in range(n) {
+        for j in range(n) {
+            w->entries[i * n + j] = w_ij(points, i, j, d, m, n);
+        }
+    }
+    $ choose random m points as active_points
+    recalculate_active_weights(w);
+}
+
+size_t largest_active_point(struct weights *w) {
+    size_t max = 0;
+    for i in w->active_points {
+        if (w->active_point_weight[i] > w->active_point_weight[max]) {
+            max = i;
+        }
+    }
+    return max;
+}
+
+size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
+    size_t min = 0;
+    for i in w->inactive_points {
+        if (relative_inactive_weight(w, i, largest_active_point) < relative_inactive_weight(w, min, largest_active_point)){
+            min = i;
+        }
+    }
+    return min;
+}
+
 int main() {
+    double *points;
+    $ read argument from command line in the format <d> <n> <points_file> <m>, store points in points
+    // points_file has n lines, each line has d numbers
+    weights w;
+    weights_alloc(&w, n);
+    process_points(&w, &points, d, m, n);
+    free(points);
+    $ until no improvement can be made {
+        double old_sum = w->active_point_sum;
+        size_t i = largest_active_point(&w);
+        size_t j = smallest_inactive_point(&w, i);
+        replace_points(&w, i, j);
+        double new_sum = w->active_point_sum;
+        if (new_sum <= old_sum) {
+            replace_points(&w, j, i);
+            break;
+        }
+    }
+    $ print active points and sum
     return 0;
 }
