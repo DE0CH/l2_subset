@@ -87,20 +87,51 @@ void replace_points(struct weights *w, struct node *dest, struct node *src) {
     add_point(w, src);
 }
 
+void print_array(double *arr, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        printf("%lf ", arr[i]);
+    }
+    printf("\n");
+}
+
+void print_linked_list(struct linked_list *list) {
+    for (struct node *node = linked_list_begin(list); node != linked_list_end(list); node = node->next) {
+        printf("%zu ", node->value);
+    }
+    printf("\n");
+}
+
+void print_matrix(struct weights *w) {
+    for (size_t i = 0; i < w->n; ++i) {
+        for (size_t j = 0; j < w->n; ++j) {
+            printf("%lf ", get_weight(w, i, j));
+        }
+        printf("\n");
+    }
+}
+
 void debug_cmp(struct weights *w) {
     size_t n = w->n;
-    double active_points[n];
-    memcpy(active_points, w->active_point_weights, n * sizeof(double));
-    double inactive_points[n];
-    memcpy(inactive_points, w->inactive_point_weights, n * sizeof(double));
+    double active_points_weights[n];
+    memcpy(active_points_weights, w->active_point_weights, n * sizeof(double));
+    double inactive_points_weights[n];
+    memcpy(inactive_points_weights, w->inactive_point_weights, n * sizeof(double));
     double active_point_sum = w->active_point_sum;
     double inactive_point_sum = w->inactive_point_sum;
     recalculate_weights(w);
-    if (memcmp(active_points, w->active_point_weights, n * sizeof(double)) != 0) {
+    if (memcmp(active_points_weights, w->active_point_weights, n * sizeof(double)) != 0) {
         fprintf(stderr, "Active points mismatch\n");
+        print_linked_list(w->active_points);
+        print_matrix(w);
+        print_array(active_points_weights, n);
+        print_array(w->active_point_weights, n);
         exit(EXIT_FAILURE);
     }
-    if (memcmp(inactive_points, w->inactive_point_weights, n * sizeof(double)) != 0) {
+    if (memcmp(inactive_points_weights, w->inactive_point_weights, n * sizeof(double)) != 0) {
+        print_linked_list(w->inactive_points);
+        print_matrix(w);
+        print_array(inactive_points_weights, n);
+        print_array(w->inactive_point_weights, n);
         fprintf(stderr, "Inactive points mismatch\n");
         exit(EXIT_FAILURE);
     }
@@ -112,6 +143,7 @@ void debug_cmp(struct weights *w) {
         fprintf(stderr, "Inactive point sum mismatch\n");
         exit(EXIT_FAILURE);
     }
+    fprintf(stderr, "All good\n");
 }
 
 void add_point(struct weights *w, struct node *src) {
@@ -166,7 +198,7 @@ void recalculate_weights(struct weights *w) {
         size_t i = node->value;
         w->active_point_weights[i] = 0.0;
         for (struct node *node2 = linked_list_begin(w->active_points); node2 != linked_list_end(w->active_points); node2 = node2->next) {
-            size_t j = node->value;
+            size_t j = node2->value;
             double change = get_weight(w, i, j) + get_weight(w, j, i);
             w->active_point_weights[i] += change;
             w->active_point_sum += change;
@@ -177,7 +209,7 @@ void recalculate_weights(struct weights *w) {
         size_t i = node->value;
         w->inactive_point_weights[i] = 0.0;
         for (struct node *node2 = linked_list_begin(w->active_points); node2 != linked_list_end(w->active_points); node2 = node2->next) {
-            size_t j = node->value;
+            size_t j = node2->value;
             double change = get_weight(w, i, j) + get_weight(w, j, i); 
             w->inactive_point_weights[i] += change;
             w->inactive_point_sum += change;
@@ -193,14 +225,14 @@ double w_ij(double* X, int i, int j, int d, int m, int n) {
         double prod1 = 1.0;
         double prod2 = 1.0;
         for (int h = 0; h < d; h++) {
-            prod1 *= (1 - pow(X[i * n + h], 2));
-            prod2 *= (1 - X[i * n + h]);
+            prod1 *= (1 - pow(X[i * d + h], 2));
+            prod2 *= (1 - X[i * d + h]);
         }
         return -pow(2, 1-d) / (2.0 * m) * prod1 + 1.0 / (2.0 * m * m) * prod2;
     } else {
         double prod = 1.0;
         for (int h = 0; h < d; h++) {
-            prod *= min(1 - X[i * n + h], 1 - X[j * n + h]);
+            prod *= min(1 - X[i * d + h], 1 - X[j * d + h]);
         }
         return prod / (m * m);
     }
@@ -264,7 +296,7 @@ void resevoir_sample(size_t *resevoir, size_t n, size_t k) {
 void array_to_mask(bool *mask, size_t *array, size_t n, size_t k) {
     // actually I could use a for loop because compiler actually optimizes it to become memset, but I want to be cool...
     memset(mask, false, n * sizeof(bool));
-    for (size_t i = 0; i < n; ++i) {
+    for (size_t i = 0; i < k; ++i) {
         mask[array[i]] = true;
     }
 }
@@ -307,24 +339,24 @@ int atoi_or_die(char *str) {
 
 struct weights *read_input(int argc, char *argv[]) {
     double *points;
-    int d, m, n;
     
     if (argc != 3) {
         die("Usage: %s <points_file> <m>", argv[0]);
     }
 
-    m = atoi_or_die(argv[2]);
+    int m = atoi_or_die(argv[2]);
 
-    points = (double *)malloc(n * d * sizeof(double));
     
     FILE *file = fopen(argv[1], "r");
     if (file == NULL) {
         die("Could not open file: %s", argv[3]);
     }
-
+    
+    int n, d;
     if (fscanf(file, "%d %d %*f", &d, &n) != 2) {
         die("Could not read dimensions. Hint: check if the file has the right format\n");
     }
+    points = (double *)malloc(n * d * sizeof(double));
 
     for (int i = 0; i < n*d; i++) {
         if(fscanf(file, "%lf", &points[i]) != 1) {
