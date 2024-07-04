@@ -14,7 +14,6 @@
 } while (0)
 typedef long long ll;
 typedef unsigned char bool;
-#define DEBUG_SLOW 1
 
 double get_weight(struct weights *w, size_t i, size_t j) {
     return w->entries[i * w->n + j];
