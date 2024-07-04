@@ -66,7 +66,7 @@ void debug_cmp(struct weights *w) {
     size_t n = w->n;
     double point_weights[n];
     memcpy(point_weights, w->point_weights, n * sizeof(double));
-    double active_point_sum = w->active_point_sum;
+    double total_discrepancy = w->total_discrepancy;
     recalculate_weights(w);
     if (!double_array_close(point_weights, w->point_weights, n)) {
         fprintf(stderr, "Active points mismatch\n");
@@ -78,12 +78,13 @@ void debug_cmp(struct weights *w) {
         print_array(w->point_weights, n);
         exit(EXIT_FAILURE);
     }
-    if (!isclose(active_point_sum, w->active_point_sum)) {
+    if (!isclose(total_discrepancy, w->total_discrepancy)) {
         print_matrix(w);
+        printf("point_weights: ");
         print_array(point_weights, n);
         print_array(w->point_weights, n);
-        printf("found: %lf expected: %lf\n", active_point_sum, w->active_point_sum);
-        fprintf(stderr, "Active point sum mismatch\n");
+        printf("found: %lf expected: %lf\n", total_discrepancy, w->total_discrepancy);
+        fprintf(stderr, "total_discrepancy mismatch\n");
         exit(EXIT_FAILURE);
     }
     fprintf(stderr, "All good\n");
@@ -91,16 +92,14 @@ void debug_cmp(struct weights *w) {
 
 void add_point(struct weights *w, size_t src) {
     size_t j = src;
+    w->total_discrepancy += w->point_weights[j];
+    double old_weight = w->point_weights[j];
     for (size_t i = 0; i < w->n; ++i) {
         double change = get_weight(w, i, j) + get_weight(w, j, i);
         w->point_weights[i] += change;
-        if (w->points_category[i] == ACTIVE) {
-            w->active_point_sum += change;
-        }
     }
     w->points_category[j] = ACTIVE;
-    w->point_weights[j] -= get_weight(w, j, j) + get_weight(w, j, j);
-    w->active_point_sum += w->point_weights[j];
+    w->point_weights[j] = old_weight;
 #if DEBUG_SLOW
     printf("Adding point %zu\n", j);
     debug_cmp(w);
@@ -108,18 +107,15 @@ void add_point(struct weights *w, size_t src) {
 }
 
 
-
 void remove_point(struct weights *w, size_t src) {
     size_t j = src;
+    w->total_discrepancy -= w->point_weights[j];
+    double old_weight = w->point_weights[j];
     for (size_t i = 0; i < w->n; i++) {
         double change = get_weight(w, i, j) + get_weight(w, j, i);
         w->point_weights[i] -= change;
-        if (w->points_category[i] == ACTIVE) {
-            w->active_point_sum -= change;
-        }
     }
-    w->active_point_sum -= w->point_weights[j];
-    w->point_weights[j] += get_weight(w, j, j) + get_weight(w, j, j);
+    w->point_weights[j] = old_weight;
     w->points_category[j] = INACTIVE;
 #if DEBUG_SLOW
     printf("Removing point %zu\n", j);
@@ -128,15 +124,18 @@ void remove_point(struct weights *w, size_t src) {
 }
 
 void recalculate_weights(struct weights *w) {
-    w->active_point_sum = 0.0;
+    w->total_discrepancy = 0.0;
     for (size_t i = 0; i < w->n; i++) {
         w->point_weights[i] = 0.0;
         for (size_t j = 0; j < w->n; j++) {
             if (w->points_category[j] == ACTIVE || i == j) {
                 double change = get_weight(w, i, j) + get_weight(w, j, i);
+                if (i == j) {
+                    change /= 2;
+                }
                 w->point_weights[i] += change;
                 if (w->points_category[i] == ACTIVE) {
-                    w->active_point_sum += change;
+                    w->total_discrepancy += get_weight(w, i, j);
                 }
             }
         }
@@ -151,7 +150,7 @@ double w_ij(double* X, int i, int j, int d, int m, int n) {
             prod1 *= (1 - pow(X[i * d + h], 2));
             prod2 *= (1 - X[i * d + h]);
         }
-        return -pow(2, 1-d) / (2.0 * m) * prod1 + 1.0 / (2.0 * m * m) * prod2;
+        return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
     } else {
         double prod = 1.0;
         for (int h = 0; h < d; h++) {
@@ -186,6 +185,7 @@ void process_points(struct weights *w, double *points, int d, int m, int n) {
     
     size_t resevoir[m];
     w->d = d;
+    w->m = m;
     resevoir_sample(resevoir, n, m);
     array_to_mask(w->points_category, resevoir, n, m);
     recalculate_weights(w);
@@ -230,7 +230,7 @@ double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
     size_t min = SIZE_MAX; 
     for (size_t i = 0; i < w->n; i++) {
-        if (i == largest_active_point || (w->points_category[i] == INACTIVE && (min == SIZE_MAX || relative_inactive_weight(w, i, largest_active_point) <= relative_inactive_weight(w, min, largest_active_point)))) {
+        if (w->points_category[i] == INACTIVE && (min == SIZE_MAX || relative_inactive_weight(w, i, largest_active_point) <= relative_inactive_weight(w, min, largest_active_point))) {
             min = i;
         }
     }
@@ -293,13 +293,16 @@ struct analytics *main_loop(struct weights *w) {
     struct analytics *a = analytics_alloc();
     a->num_iterations = 0;
     double old_sum;
-    double new_sum = w->active_point_sum;
+    double new_sum = w->total_discrepancy;
+    if (w->n == w->m) {
+        return a;
+    }
     do {
         size_t i = largest_active_point(w);
         size_t j = smallest_inactive_point(w, i);
         replace_points(w, i, j);
         old_sum = new_sum;
-        new_sum = w->active_point_sum;
+        new_sum = w->total_discrepancy;
         if (old_sum <= new_sum) {
             replace_points(w, j, i);
         }
@@ -318,7 +321,7 @@ void print_results(struct weights *w, struct analytics *a) {
     printf("\n");
     double constant = 1.0 / (double)pow(3, w->d);
     printf("Number of iterations: %lld\n", a->num_iterations);
-    printf("Active point sum: %lf\n", constant + w->active_point_sum);
+    printf("Active point sum: %lf\n", constant + w->total_discrepancy);
 }
 
 int main(int argc, char *argv[]) {

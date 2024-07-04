@@ -24,10 +24,11 @@ typedef unsigned char bool;
 
 struct weights {
     size_t n;
+    size_t m;
     size_t d;
     double *entries;
     double *point_weights;
-    double active_point_sum;
+    double total_discrepancy;
     bool *points_category;
 };
 
@@ -57,6 +58,10 @@ void resevoir_sample(size_t *resevoir, size_t n, size_t k);
 void array_to_mask(bool *mask, size_t *array, size_t n, size_t k);
 int atoi_or_die(char *str);
 struct weights *read_input(int argc, char *argv[]);
+double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
+bool isclose(double a, double b);
+void print_matrix(struct weights *w);
+void print_array(double *arr, size_t n);
 
 // Analytics functions
 struct analytics *analytics_alloc(void);
