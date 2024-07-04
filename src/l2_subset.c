@@ -51,6 +51,15 @@ struct node *linked_list_end(struct linked_list *list) {
     return &list->end;
 }
 
+struct node *linked_list_find(struct linked_list *list, size_t point) {
+    for (struct node *node = linked_list_begin(list); node != linked_list_end(list); node = node->next) {
+        if (node->value == point) {
+            return node;
+        }
+    }
+    return linked_list_end(list);
+}
+
 struct small_allocator *small_allocator_alloc(size_t n) {
     struct small_allocator *alloc = (struct small_allocator *)malloc(sizeof(struct small_allocator));
     alloc->mem = (struct node *)malloc(n * sizeof(struct node));
@@ -110,13 +119,28 @@ void print_matrix(struct weights *w) {
     }
 }
 
+bool isclose(double a, double b) {
+    double rel_tol = 1e-9;
+    double abs_tol = 0.0;
+    return (fabs(a-b) <= max(rel_tol * max(fabs(a), fabs(b)), abs_tol));
+}
+
+bool double_array_close(double *a, double *b, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        if (!isclose(a[i], b[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void debug_cmp(struct weights *w) {
     size_t n = w->n;
     double point_weights[n];
     memcpy(point_weights, w->point_weights, n * sizeof(double));
     double active_point_sum = w->active_point_sum;
     recalculate_weights(w);
-    if (memcmp(point_weights, w->point_weights, n * sizeof(double)) != 0) {
+    if (!double_array_close(point_weights, w->point_weights, n)) {
         fprintf(stderr, "Active points mismatch\n");
         print_linked_list(w->active_points);
         print_matrix(w);
@@ -124,7 +148,7 @@ void debug_cmp(struct weights *w) {
         print_array(w->point_weights, n);
         exit(EXIT_FAILURE);
     }
-    if (active_point_sum != w->active_point_sum) {
+    if (!isclose(active_point_sum, w->active_point_sum)) {
         print_linked_list(w->active_points);
         print_matrix(w);
         print_array(point_weights, n);
@@ -374,10 +398,18 @@ struct analytics *main_loop(struct weights *w) {
     double new_sum = w->active_point_sum;
     do {
         struct node *i = largest_active_point(w);
+        size_t ii = i->value;
         struct node *j = smallest_inactive_point(w, i);
+        size_t jj = j->value;
         replace_points(w, i, j);
         old_sum = new_sum;
         new_sum = w->active_point_sum;
+        if (old_sum <= new_sum) {
+            struct node *iii = linked_list_find(w->inactive_points, ii);
+            struct node *jjj = linked_list_find(w->active_points, jj);
+            replace_points(w, jjj, iii);
+        }
+        a->num_iterations++;
     } while (new_sum < old_sum);
     return a;
 }
@@ -389,6 +421,7 @@ void print_results(struct weights *w, struct analytics *a) {
     }
     printf("\n");
     printf("Number of iterations: %lld\n", a->num_iterations);
+    printf("Active point sum: %lf\n", w->active_point_sum);
 }
 
 int main(int argc, char *argv[]) {
