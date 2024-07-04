@@ -112,35 +112,25 @@ void print_matrix(struct weights *w) {
 
 void debug_cmp(struct weights *w) {
     size_t n = w->n;
-    double active_points_weights[n];
-    memcpy(active_points_weights, w->active_point_weights, n * sizeof(double));
-    double inactive_points_weights[n];
-    memcpy(inactive_points_weights, w->inactive_point_weights, n * sizeof(double));
+    double point_weights[n];
+    memcpy(point_weights, w->point_weights, n * sizeof(double));
     double active_point_sum = w->active_point_sum;
-    double inactive_point_sum = w->inactive_point_sum;
     recalculate_weights(w);
-    if (memcmp(active_points_weights, w->active_point_weights, n * sizeof(double)) != 0) {
+    if (memcmp(point_weights, w->point_weights, n * sizeof(double)) != 0) {
         fprintf(stderr, "Active points mismatch\n");
         print_linked_list(w->active_points);
         print_matrix(w);
-        print_array(active_points_weights, n);
-        print_array(w->active_point_weights, n);
-        exit(EXIT_FAILURE);
-    }
-    if (memcmp(inactive_points_weights, w->inactive_point_weights, n * sizeof(double)) != 0) {
-        print_linked_list(w->inactive_points);
-        print_matrix(w);
-        print_array(inactive_points_weights, n);
-        print_array(w->inactive_point_weights, n);
-        fprintf(stderr, "Inactive points mismatch\n");
+        print_array(point_weights, n);
+        print_array(w->point_weights, n);
         exit(EXIT_FAILURE);
     }
     if (active_point_sum != w->active_point_sum) {
+        print_linked_list(w->active_points);
+        print_matrix(w);
+        print_array(point_weights, n);
+        print_array(w->point_weights, n);
+        printf("found: %lf expected: %lf\n", active_point_sum, w->active_point_sum);
         fprintf(stderr, "Active point sum mismatch\n");
-        exit(EXIT_FAILURE);
-    }
-    if (inactive_point_sum != w->inactive_point_sum) {
-        fprintf(stderr, "Inactive point sum mismatch\n");
         exit(EXIT_FAILURE);
     }
     fprintf(stderr, "All good\n");
@@ -151,17 +141,17 @@ void add_point(struct weights *w, struct node *src) {
     for (struct node *node = linked_list_begin(w->active_points); node != linked_list_end(w->active_points); node = node->next) {
         size_t i = node->value;
         double change = get_weight(w, i, j) + get_weight(w, j, i);
-        w->active_point_weights[i] += change;
+        w->point_weights[i] += change;
         w->active_point_sum += change;
     }
     linked_list_add(w->active_points, src->value);
+    w->active_point_sum += w->point_weights[j];
     linked_list_remove(w->inactive_points, src);
     // nothing to do for src because invariant guarantees that it has value of all the active points including itself
     for (struct node *node = linked_list_begin(w->inactive_points); node != linked_list_end(w->inactive_points); node = node->next) {
         size_t i = node->value;
         double change = get_weight(w, i, j) + get_weight(w, j, i);
-        w->inactive_point_weights[i] += change;
-        w->inactive_point_sum += change;
+        w->point_weights[i] += change;
     }
 #if DEBUG_SLOW
     debug_cmp(w);
@@ -174,19 +164,20 @@ void remove_point(struct weights *w, struct node *src) {
     size_t j = src->value;
     // need to remove itself from active list first to make sure its value doesn't get changed
     linked_list_remove(w->active_points, src);
+    w->active_point_sum -= w->point_weights[j];
     for (struct node *node = linked_list_begin(w->active_points); node != linked_list_end(w->active_points); node = node->next) {
         size_t i = node->value;
         double change = get_weight(w, i, j) + get_weight(w, j, i);
-        w->active_point_weights[i] -= change;
+        w->point_weights[i] -= change;
         w->active_point_sum -= change;
     }
     for (struct node *node = linked_list_begin(w->inactive_points); node != linked_list_end(w->inactive_points); node = node->next) {
         size_t i = node->value;
         double change = get_weight(w, i, j) + get_weight(w, j, i);
-        w->inactive_point_weights[i] -= change;
-        w->inactive_point_sum -= change;
+        w->point_weights[i] -= change;
     }
     linked_list_add(w->inactive_points, src->value);
+    
 #if DEBUG_SLOW
     debug_cmp(w);
 #endif
@@ -196,27 +187,24 @@ void recalculate_weights(struct weights *w) {
     w->active_point_sum = 0.0;
     for (struct node *node = linked_list_begin(w->active_points); node != linked_list_end(w->active_points); node = node->next) {
         size_t i = node->value;
-        w->active_point_weights[i] = 0.0;
+        w->point_weights[i] = 0.0;
         for (struct node *node2 = linked_list_begin(w->active_points); node2 != linked_list_end(w->active_points); node2 = node2->next) {
             size_t j = node2->value;
             double change = get_weight(w, i, j) + get_weight(w, j, i);
-            w->active_point_weights[i] += change;
+            w->point_weights[i] += change;
             w->active_point_sum += change;
         }
     }
-    w->inactive_point_sum = 0.0;
     for (struct node *node = linked_list_begin(w->inactive_points); node != linked_list_end(w->inactive_points); node = node->next) {
         size_t i = node->value;
-        w->inactive_point_weights[i] = 0.0;
+        w->point_weights[i] = 0.0;
         for (struct node *node2 = linked_list_begin(w->active_points); node2 != linked_list_end(w->active_points); node2 = node2->next) {
             size_t j = node2->value;
             double change = get_weight(w, i, j) + get_weight(w, j, i); 
-            w->inactive_point_weights[i] += change;
-            w->inactive_point_sum += change;
+            w->point_weights[i] += change;
         }
         double change = get_weight(w, i, i) + get_weight(w, i, i);
-        w->inactive_point_weights[i] += change;
-        w->inactive_point_sum += change;
+        w->point_weights[i] += change;
     }
 }
 
@@ -242,8 +230,7 @@ struct weights *weights_alloc(size_t n) {
     struct weights *w = (struct weights *)malloc(sizeof(struct weights));
     w->entries = (double *)malloc(n * n * sizeof(double));
     w->n = n;
-    w->active_point_weights = (double *)malloc(n * sizeof(double));
-    w->inactive_point_weights = (double *)malloc(n * sizeof(double));
+    w->point_weights = (double *)malloc(n * sizeof(double));
     w->active_points = linked_list_alloc(n);
     w->inactive_points = linked_list_alloc(n);
     return w;
@@ -251,8 +238,7 @@ struct weights *weights_alloc(size_t n) {
 
 void weights_free(struct weights *w) {
     free(w->entries);
-    free(w->active_point_weights);
-    free(w->inactive_point_weights);
+    free(w->point_weights);
     linked_list_free(w->active_points);
     linked_list_free(w->inactive_points);
     free(w);    
@@ -305,7 +291,7 @@ struct node *largest_active_point(struct weights *w) {
     struct node *max = NULL;
     for (struct node *node = linked_list_begin(w->active_points); node != linked_list_end(w->active_points); node = node->next) {
         size_t i = node->value;
-        if (max == NULL || w->active_point_weights[i] >= w->active_point_weights[node->value]) {
+        if (max == NULL || w->point_weights[i] >= w->point_weights[node->value]) {
             max = node;
         }
     }
@@ -314,7 +300,7 @@ struct node *largest_active_point(struct weights *w) {
 
 
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point) {
-    return w->inactive_point_weights[inactive_point] - get_weight(w, inactive_point, active_point) - get_weight(w, active_point, inactive_point);
+    return w->point_weights[inactive_point] - get_weight(w, inactive_point, active_point) - get_weight(w, active_point, inactive_point);
 }
 
 struct node *smallest_inactive_point(struct weights *w, struct node *largest_active_point) {
@@ -384,18 +370,15 @@ void analytics_free(struct analytics *a) {
 struct analytics *main_loop(struct weights *w) {
     struct analytics *a = analytics_alloc();
     a->num_iterations = 0;
-    double old_sum = w->active_point_sum;
-    double new_sum;
+    double old_sum;
+    double new_sum = w->active_point_sum;
     do {
         struct node *i = largest_active_point(w);
         struct node *j = smallest_inactive_point(w, i);
         replace_points(w, i, j);
+        old_sum = new_sum;
         new_sum = w->active_point_sum;
-        if (old_sum < new_sum) {
-            replace_points(w, j, i);
-            break;
-        }
-    } while (new_sum <= old_sum);
+    } while (new_sum < old_sum);
     return a;
 }
 

@@ -41,10 +41,8 @@ struct linked_list {
 struct weights {
     size_t n;
     double *entries;
-    double *active_point_weights;
+    double *point_weights;
     double active_point_sum;
-    double *inactive_point_weights;
-    double inactive_point_sum;
     struct linked_list *active_points;
     struct linked_list *inactive_points;
 };
