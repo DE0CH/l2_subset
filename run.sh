@@ -2,7 +2,8 @@
 
 set -eo pipefail
 
-make -C build CFLAGS="-UDEBUG_SLOW -Wall -O3"
+make -C build clean
+make -C build CFLAGS="-DDEBUG_SLOW -Wall -O3"
 N=20
 M=10
 TRIALS=10
