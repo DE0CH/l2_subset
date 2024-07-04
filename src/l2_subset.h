@@ -32,6 +32,11 @@ struct weights {
     bool *points_category;
 };
 
+struct input_data {
+    ll n_trials;
+    ll seed;
+};
+
 struct analytics {
     ll num_iterations;
 };
@@ -57,7 +62,7 @@ void debug_cmp(struct weights *w);
 void resevoir_sample(size_t *resevoir, size_t n, size_t k);
 void array_to_mask(bool *mask, size_t *array, size_t n, size_t k);
 int atoi_or_die(char *str);
-struct weights *read_input(int argc, char *argv[]);
+struct weights *read_input(struct input_data *data, int argc, char *argv[]);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 bool isclose(double a, double b);
 void print_matrix(struct weights *w);

@@ -176,19 +176,24 @@ void weights_free(struct weights *w) {
     free(w);    
 }
 
+void select_random_points(struct weights *w) {
+    size_t m = w->m;
+    size_t n = w->n;
+    size_t resevoir[m];
+
+    resevoir_sample(resevoir, n, m);
+    array_to_mask(w->points_category, resevoir, n, m);
+    recalculate_weights(w);
+}
+
 void process_points(struct weights *w, double *points, int d, int m, int n) {
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             w->entries[i * n + j] = w_ij(points, i, j, d, m, n);
         }
     }
-    
-    size_t resevoir[m];
     w->d = d;
     w->m = m;
-    resevoir_sample(resevoir, n, m);
-    array_to_mask(w->points_category, resevoir, n, m);
-    recalculate_weights(w);
 }
 
 void resevoir_sample(size_t *resevoir, size_t n, size_t k) {
@@ -246,15 +251,16 @@ int atoi_or_die(char *str) {
     return result;
 }
 
-struct weights *read_input(int argc, char *argv[]) {
+struct weights *read_input(struct input_data *data, int argc, char *argv[]) {
     double *points;
     
-    if (argc != 3) {
-        die("Usage: %s <points_file> <m>", argv[0]);
+    if (argc != 5) {
+        die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
     }
 
     int m = atoi_or_die(argv[2]);
-
+    int seed = atoi_or_die(argv[3]);
+    int n_trials = atoi_or_die(argv[4]);
     
     FILE *file = fopen(argv[1], "r");
     if (file == NULL) {
@@ -274,7 +280,9 @@ struct weights *read_input(int argc, char *argv[]) {
     }
 
     fclose(file);
-    srand(42);
+    data->n_trials = n_trials;
+    data->seed = seed;
+
     struct weights *w = weights_alloc(n);
     process_points(w, points, d, m, n);
     free(points);
@@ -325,10 +333,17 @@ void print_results(struct weights *w, struct analytics *a) {
 }
 
 int main(int argc, char *argv[]) {
-    struct weights *w = read_input(argc, argv);
-    struct analytics *a = main_loop(w);
-    print_results(w, a);
+    struct input_data data;
+    struct weights *w = read_input(&data, argc, argv);
+    srand(data.seed);
+    for (ll i = 0; i < data.n_trials; i++) {
+        printf("Trial %lld\n", i);
+        select_random_points(w);
+        struct analytics *a = main_loop(w);
+        print_results(w, a);
+        analytics_free(a);
+    }
+
     weights_free(w);
-    analytics_free(a);
     return 0;
 }
