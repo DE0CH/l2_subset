@@ -1,0 +1,4 @@
+set breakpoint pending on
+b __asan::ReportGenericError
+b __ubsan::ScopedReport::~ScopedReport
+run
