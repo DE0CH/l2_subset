@@ -309,19 +309,21 @@ struct weights *read_input(int argc, char *argv[]) {
     double *points;
     int d, m, n;
     
-    if (argc != 5) {
-        die("Usage: %s <d> <n> <points_file> <m>", argv[0]);
+    if (argc != 3) {
+        die("Usage: %s <points_file> <m>", argv[0]);
     }
 
-    d = atoi_or_die(argv[1]);
-    n = atoi_or_die(argv[2]);
-    m = atoi_or_die(argv[4]);
+    m = atoi_or_die(argv[2]);
 
     points = (double *)malloc(n * d * sizeof(double));
     
-    FILE *file = fopen(argv[3], "r");
+    FILE *file = fopen(argv[1], "r");
     if (file == NULL) {
         die("Could not open file: %s", argv[3]);
+    }
+
+    if (fscanf(file, "%d %d %*f", &d, &n) != 2) {
+        die("Could not read dimensions. Hint: check if the file has the right format\n");
     }
 
     for (int i = 0; i < n*d; i++) {
