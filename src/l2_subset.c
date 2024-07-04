@@ -20,8 +20,19 @@ double get_weight(struct weights *w, size_t i, size_t j) {
 }
 
 void replace_points(struct weights *w, size_t dest, size_t src) {
+#if DEBUG_SLOW
+    double predicted_change = -w->point_weights[dest] + relative_inactive_weight(w, src, dest);
+    double old_total_discrepancy = w->total_discrepancy;
+#endif
     remove_point(w, dest);
     add_point(w, src);
+#if DEBUG_SLOW
+    if (!isclose(predicted_change, w->total_discrepancy - old_total_discrepancy)) {
+        fprintf(stderr, "Predicted change: %lf, actual change: %lf\n", predicted_change, w->total_discrepancy - old_total_discrepancy);
+        fprintf(stderr, "dest: %zu, src: %zu\n", dest, src);
+        exit(EXIT_FAILURE);
+    }
+#endif
 }
 
 void print_array(double *arr, size_t n) {
