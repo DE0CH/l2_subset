@@ -12,7 +12,10 @@ struct weights {
 }
 
 struct linked_list {
-    ...
+    size_t head, 
+    double *entries,
+    size_t *next, // the last element points to head 
+    size_t cap, 
 }
 
 double get_weight(struct weights *w, size_t i, size_t j) {
@@ -95,7 +98,7 @@ void recalculate_active_weights(struct weights *w) {
 double w_ij(double* X, int i, int j, int d, int m, int n) {
     if (i == j) {
         double prod1 = 1.0;
-        double prod2 = 1.0;
+        double prod2 =  1.0;
         for (int h = 0; h < d; h++) {
             prod1 *= (1 - pow(X[i * n + h], 2));
             prod2 *= (1 - X[i * n + h]);
@@ -160,6 +163,7 @@ size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
 int main() {
     double *points;
     $ read argument from command line in the format <d> <n> <points_file> <m>, store points in points
+    $ seed the random number generator
     // points_file has n lines, each line has d numbers
     weights w;
     weights_alloc(&w, n);
