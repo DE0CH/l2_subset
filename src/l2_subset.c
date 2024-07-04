@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <math.h>
 #include "l2_subset.h"
 #define max(a, b) ((a) > (b) ? (a) : (b))
