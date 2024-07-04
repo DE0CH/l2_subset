@@ -341,6 +341,7 @@ void print_results(struct weights *w, struct analytics *a) {
     double constant = 1.0 / (double)pow(3, w->d);
     printf("Number of iterations: %lld\n", a->num_iterations);
     printf("Active point sum: %lf\n", constant + w->total_discrepancy);
+    fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {
