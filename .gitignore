@@ -10,5 +10,9 @@
 .dirstamp
 *.o
 *~
+/compile
+/depcomp
+/install-sh
+/missing
 
 build/
