@@ -869,7 +869,7 @@ double shift(int npoints, int kpoints, int dim, double **Orig_pointset)
         if (!chosen)
             break;
     }
-    fprintf(stderr, "Nb calcu:%d, Final discre:%lf\n", nb_calc, upper);
+    printf("Nb calcu:%d, Final discre:%lf\n", nb_calc, upper);
     for (i = 0; i < kpoints; i++)
         memcpy(optiset[i], subset[i], dim * sizeof(double));
 
@@ -894,7 +894,7 @@ double shift(int npoints, int kpoints, int dim, double **Orig_pointset)
 
     free(top_bord);
 
-    fprintf(stderr, "Natural: %d, Brute: %d, Discr: %lf", nb_natural, nb_brute, upper);
+    fprintf(stderr, "Natural: %d, Brute: %d, Discr: %lf\n", nb_natural, nb_brute, upper);
     return upper;
 }
 
@@ -902,7 +902,6 @@ int main(int argc, char **argv)
 {
     int dim, npoints, i, j, kpoints;
     FILE *pointfile;
-    double upper;
     int nb_tries;
     double **Orig_pointset;
     srand(1);
@@ -933,7 +932,6 @@ int main(int argc, char **argv)
             }
         }
     }
-    double super_best = 1.0;
     int tries;
     char *tries_env = getenv("SHIFT_TRIES");
     if (tries_env != NULL)
@@ -995,25 +993,9 @@ int main(int argc, char **argv)
             memcpy(optiset[i], Orig_pointset[i], dim * sizeof(double));
         }
 
-        upper = shift(npoints, kpoints, dim, Orig_pointset);
+        shift(npoints, kpoints, dim, Orig_pointset);
         end = clock();
         cput = ((double)(end - start)) / CLOCKS_PER_SEC;
-        if (super_best > upper)
-        {
-            super_best = upper;
-            FILE *fp; // Move our opti point set to a file
-            fp = fopen(argv[5], "w");
-            fprintf(fp, "n=%d,k=%d,dim=%d, discrepancy=%lf, runtime=%lf\n", npoints, kpoints, dim, upper, cput);
-            for (i = 0; i < kpoints; i++)
-            {
-                for (j = 0; j < dim; j++)
-                {
-                    fprintf(fp, "%.18e ", optiset[i][j]);
-                }
-                fprintf(fp, "\n");
-            }
-            fclose(fp);
-        }
         for (i = 0; i < kpoints; i++)
             free(optiset[i]);
         free(optiset);
