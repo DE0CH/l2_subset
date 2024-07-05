@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "l2_subset.h"
 
 int main(int argc, char *argv[]) {

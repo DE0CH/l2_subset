@@ -1,11 +1,7 @@
 #ifndef L2_SUBSET_H
 #define L2_SUBSET_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
+#include <stddef.h>
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define true 1
@@ -35,6 +31,7 @@ struct weights {
 struct input_data {
     ll n_trials;
     ll seed;
+    char *output_filename;
 };
 
 struct analytics {
@@ -74,5 +71,11 @@ struct analytics *analytics_alloc(void);
 void analytics_free(struct analytics *a);
 struct analytics *main_loop(struct weights *w);
 void print_results(struct weights *w, struct analytics *a);
+
+struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]);
+int weights_serialize(struct weights *w, char *filename);
+struct weights *weights_deserialize(char *filename, void **mmapedData);
+struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);
+int free_mmaped_matrix(struct weights *w, void *mmaped_data);
 
 #endif // L2_SUBSET_H

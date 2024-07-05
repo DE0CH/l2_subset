@@ -3,6 +3,8 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <errno.h>
+#include <sys/mman.h>
 #include "l2_subset.h"
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -300,6 +302,94 @@ struct weights *read_point_file(struct input_data *data, int argc, char *argv[])
     free(points);
 
     return w;
+}
+
+struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data) {
+    if (argc != 3) {
+        die("Usage: %s <compiled_matrix_file> <seed>. Selecte m low discrepancy points.", argv[0]);
+    }
+    int seed = atoi_or_die(argv[2]);
+    data->seed = seed;
+    struct weights *w = weights_deserialize(argv[1], mmaped_data);
+    if (w == NULL) {
+        die("Could not read compiled matrix file: %s", argv[1]);
+    }
+    return w;
+}
+
+
+struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]) {
+    if (argc != 4) {
+        die("Usage: %s <points_file> <m> <output_file>. Precompute the matrix and save to output file.", argv[0]);
+    }
+    int m = atoi_or_die(argv[2]);
+    int d, n;
+    double *points = read_points_from_file(argv[1], &d, &n);
+    data->output_filename = argv[3];
+    struct weights *w = weights_alloc(n);
+    process_points(w, points, d, m, n);
+    free(points);
+    return w;
+}
+
+int weights_serialize(struct weights *w, char *filename) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        return 1;
+    }
+    size_t written = 0;
+    size_t total = 3 + w->n * w->n;
+    written += fwrite(&w->n, sizeof(size_t), 1, file);
+    written += fwrite(&w->m, sizeof(size_t), 1, file);
+    written += fwrite(&w->d, sizeof(size_t), 1, file);
+    written += fwrite(w->entries, sizeof(double), w->n * w->n, file);
+    fclose(file);
+    if (written != total) {
+        return 1;
+    }
+    return 0;
+}
+
+struct weights *weights_deserialize(char *filename, void **mmapedData) {
+    
+    // mmap the file to entries
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        return NULL;
+    }
+    size_t n;
+    size_t m;
+    size_t d;
+    size_t read = 0;
+    read += fread(&n, sizeof(size_t), 1, file);
+    read += fread(&m, sizeof(size_t), 1, file);
+    read += fread(&d, sizeof(size_t), 1, file);
+    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
+    struct weights *w = weights_alloc(n);
+    free(w->entries);
+    w->m = m;
+    w->d = d;
+    w->n = n;
+
+    *mmapedData = mmap(NULL, filesize, PROT_READ, MAP_PRIVATE, fileno(file), 0);
+    if (*mmapedData == MAP_FAILED) {
+        fclose(file);
+        return NULL;
+    }
+    
+    size_t offset = 3;
+    double *entries = (double *)((size_t *)*mmapedData + offset);
+    w->entries = entries;
+    return w;
+}
+
+int free_mmaped_matrix(struct weights *w, void *mmaped_data) {
+    size_t n = w->n;
+    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
+    if (munmap(mmaped_data, filesize) == -1) {
+        return 1;
+    }
+    return 0;
 }
 
 struct analytics *analytics_alloc() {
