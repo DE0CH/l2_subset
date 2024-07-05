@@ -262,41 +262,43 @@ int atoi_or_die(char *str) {
     return result;
 }
 
-struct weights *read_input(struct input_data *data, int argc, char *argv[]) {
-    double *points;
-    
-    if (argc != 5) {
-        die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
-    }
-
-    int m = atoi_or_die(argv[2]);
-    int seed = atoi_or_die(argv[3]);
-    int n_trials = atoi_or_die(argv[4]);
-    
-    FILE *file = fopen(argv[1], "r");
+double *read_points_from_file(char *filename, int *d, int *n) { // return the points, write d and n to the pointers supplied in the arugment
+    FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        die("Could not open file: %s", argv[3]);
+        die("Could not open file: %s", filename);
     }
-    
-    int n, d;
-    if (fscanf(file, "%d %d %*f", &d, &n) != 2) {
+    if (fscanf(file, "%d %d %*f", d, n) != 2) {
         die("Could not read dimensions. Hint: check if the file has the right format\n");
     }
-    points = (double *)malloc(n * d * sizeof(double));
+    double *points = (double *)malloc(*n * *d * sizeof(double));
 
-    for (int i = 0; i < n*d; i++) {
+    for (int i = 0; i < *n**d; i++) {
         if(fscanf(file, "%lf", &points[i]) != 1) {
             die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
         }
     }
-
     fclose(file);
+    return points;
+}
+
+struct weights *read_point_file(struct input_data *data, int argc, char *argv[]) { // return the points
+    
+    if (argc != 5) {
+        die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
+    }
+    int m = atoi_or_die(argv[2]);
+    int seed = atoi_or_die(argv[3]);
+    int n_trials = atoi_or_die(argv[4]);
+    
     data->n_trials = n_trials;
     data->seed = seed;
 
+    int d, n;
+    double *points = read_points_from_file(argv[1], &d, &n);
     struct weights *w = weights_alloc(n);
     process_points(w, points, d, m, n);
     free(points);
+
     return w;
 }
 
@@ -344,18 +346,3 @@ void print_results(struct weights *w, struct analytics *a) {
     fflush(stdout);
 }
 
-int main(int argc, char *argv[]) {
-    struct input_data data;
-    struct weights *w = read_input(&data, argc, argv);
-    srand(data.seed);
-    for (ll i = 0; i < data.n_trials; i++) {
-        printf("Trial %lld\n", i);
-        select_random_points(w);
-        struct analytics *a = main_loop(w);
-        print_results(w, a);
-        analytics_free(a);
-    }
-
-    weights_free(w);
-    return 0;
-}

@@ -57,12 +57,13 @@ double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point);
 double w_ij(double* X, int i, int j, int d, int m, int n);
 void debug_cmp(struct weights *w);
+void select_random_points(struct weights *w);
 
 // Utility functions
 void resevoir_sample(size_t *resevoir, size_t n, size_t k);
 void array_to_mask(bool *mask, size_t *array, size_t n, size_t k);
 int atoi_or_die(char *str);
-struct weights *read_input(struct input_data *data, int argc, char *argv[]);
+struct weights *read_point_file(struct input_data *data, int argc, char *argv[]);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 bool isclose(double a, double b);
 void print_matrix(struct weights *w);
