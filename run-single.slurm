@@ -45,4 +45,7 @@ run_trial() {
     rm "$output_file"
 }
 export -f run_trial
-run_trial $SLURM_ARRAY_TASK_ID
+
+if [ -z ${$SLURM_ARRAY_TASK_ID+x} ]; then
+    run_trial $SLURM_ARRAY_TASK_ID;
+else generate_points; fi
