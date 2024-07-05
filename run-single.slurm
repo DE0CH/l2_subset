@@ -46,6 +46,6 @@ run_trial() {
 }
 export -f run_trial
 
-if [ -z ${$SLURM_ARRAY_TASK_ID+x} ]; then
+if [ -z ${SLURM_ARRAY_TASK_ID+x} ]; then
     run_trial $SLURM_ARRAY_TASK_ID;
 else generate_points; fi
