@@ -12,7 +12,13 @@ int main(int argc, char *argv[]) {
     print_results(w, a);
     analytics_free(a);
     free_mmaped_matrix(w, mmaped_data);
+#if COMPUTE_MODE == USE_MATRIX
     w->entries = malloc(0);
+#elif COMPUTE_MODE == USE_POINTS
+    w->points = malloc(0);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     weights_free(w);
     return 0;
 }

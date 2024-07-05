@@ -18,7 +18,13 @@ typedef long long ll;
 typedef unsigned char bool;
 
 double get_weight(struct weights *w, size_t i, size_t j) {
+#if COMPUTE_MODE == USE_MATRIX
     return w->entries[i * w->n + j];
+#elif COMPUTE_MODE == USE_POINTS
+    return w_ij(w->points, i, j, w->d, w->m, w->n);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
 }
 
 void replace_points(struct weights *w, size_t dest, size_t src) {
@@ -175,7 +181,12 @@ double w_ij(double* X, int i, int j, int d, int m, int n) {
 
 struct weights *weights_alloc(size_t n) {
     struct weights *w = (struct weights *)malloc(sizeof(struct weights));
+#if COMPUTE_MODE == USE_MATRIX
     w->entries = (double *)malloc(n * n * sizeof(double));
+#elif COMPUTE_MODE == USE_POINTS
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     w->n = n;
     w->point_weights = (double *)malloc(n * sizeof(double));
     w->points_category = (bool *)malloc(n * sizeof(bool));
@@ -183,7 +194,13 @@ struct weights *weights_alloc(size_t n) {
 }
 
 void weights_free(struct weights *w) {
+#if COMPUTE_MODE == USE_MATRIX
     free(w->entries);
+#elif COMPUTE_MODE == USE_POINTS
+    free(w->points);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     free(w->point_weights);
     free(w->points_category);
     free(w);    
@@ -200,11 +217,17 @@ void select_random_points(struct weights *w) {
 }
 
 void process_points(struct weights *w, double *points, int d, int m, int n) {
+#if COMPUTE_MODE == USE_MATRIX
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             w->entries[i * n + j] = w_ij(points, i, j, d, m, n);
         }
     }
+#elif COMPUTE_MODE == USE_POINTS
+    w->points = points;
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     w->d = d;
     w->m = m;
 }
@@ -298,8 +321,14 @@ struct weights *read_point_file(struct input_data *data, int argc, char *argv[])
     int d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
     struct weights *w = weights_alloc(n);
+#if COMPUTE_MODE == USE_MATRIX
     process_points(w, points, d, m, n);
     free(points);
+#elif COMPUTE_MODE == USE_POINTS
+    process_points(w, points, d, m, n);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
 
     return w;
 }
@@ -328,7 +357,12 @@ struct weights *read_point_file_and_save(struct input_data *data, int argc, char
     data->output_filename = argv[3];
     struct weights *w = weights_alloc(n);
     process_points(w, points, d, m, n);
+#if COMPUTE_MODE == USE_MATRIX
     free(points);
+#elif COMPUTE_MODE == USE_POINTS
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     return w;
 }
 
@@ -338,11 +372,23 @@ int weights_serialize(struct weights *w, char *filename) {
         return 1;
     }
     size_t written = 0;
+#if COMPUTE_MODE == USE_MATRIX
     size_t total = 3 + w->n * w->n;
+#elif COMPUTE_MODE == USE_POINTS
+    size_t total = 3 + w->n * w->d;
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     written += fwrite(&w->n, sizeof(size_t), 1, file);
     written += fwrite(&w->m, sizeof(size_t), 1, file);
     written += fwrite(&w->d, sizeof(size_t), 1, file);
+#if COMPUTE_MODE == USE_MATRIX
     written += fwrite(w->entries, sizeof(double), w->n * w->n, file);
+#elif COMPUTE_MODE == USE_POINTS
+    written += fwrite(w->points, sizeof(double), w->n * w->d, file);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     fclose(file);
     if (written != total) {
         return 1;
@@ -364,9 +410,15 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
     read += fread(&n, sizeof(size_t), 1, file);
     read += fread(&m, sizeof(size_t), 1, file);
     read += fread(&d, sizeof(size_t), 1, file);
-    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
     struct weights *w = weights_alloc(n);
+#if COMPUTE_MODE == USE_MATRIX
+    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
     free(w->entries);
+#elif COMPUTE_MODE == USE_POINTS
+    size_t filesize = sizeof(size_t) * 3 + n * d * sizeof(double);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     w->m = m;
     w->d = d;
     w->n = n;
@@ -378,14 +430,27 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
     }
     
     size_t offset = 3;
+#if COMPUTE_MODE == USE_MATRIX
     double *entries = (double *)((size_t *)*mmapedData + offset);
     w->entries = entries;
+#elif COMPUTE_MODE == USE_POINTS
+    double *points = (double *)((size_t *)*mmapedData + offset);
+    w->points = points;
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     return w;
 }
 
 int free_mmaped_matrix(struct weights *w, void *mmaped_data) {
     size_t n = w->n;
+#if COMPUTE_MODE == USE_MATRIX
     size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
+#elif COMPUTE_MODE == USE_POINTS
+    size_t filesize = sizeof(size_t) * 3 + n * w->d * sizeof(double);
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
     if (munmap(mmaped_data, filesize) == -1) {
         return 1;
     }

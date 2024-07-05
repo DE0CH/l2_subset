@@ -8,6 +8,11 @@
 #define false 0
 #define ACTIVE 1
 #define INACTIVE 0
+#define USE_MATRIX 1
+#define USE_POINTS 2
+#ifndef COMPUTE_MODE
+#define COMPUTE_MODE 1
+#endif
 #define die(fmt, ...) do { \
     fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__); \
     exit(EXIT_FAILURE); \
@@ -22,7 +27,14 @@ struct weights {
     size_t n;
     size_t m;
     size_t d;
+    char mode;
+#if COMPUTE_MODE == USE_MATRIX
     double *entries;
+#elif COMPUTE_MODE == USE_POINTS
+    double *points;
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif 
     double *point_weights;
     double total_discrepancy;
     bool *points_category;
