@@ -12,5 +12,5 @@ AC_CHECK_HEADER([stdlib.h], [], [AC_MSG_ERROR([stdlib.h is required but not foun
 AC_CHECK_HEADER([string.h], [], [AC_MSG_ERROR([string.h is required but not found])])
 
 AC_CONFIG_FILES([Makefile])
-CFLAGS="$CFLAGS -Wall -Werror -O3"
+CFLAGS="-Wall -Werror -O3"
 AC_OUTPUT
