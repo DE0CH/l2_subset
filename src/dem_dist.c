@@ -48,7 +48,7 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
                     double **forced, int nforced,
                     double *lowerleft, double *upperright)
 {
-    double discr, maxdiscr, coordlist[dim][nforced];
+    double discr, maxdiscr, coordlist[dim][nforced + 1]; // actually coordlist[dim][nforced] is enough but nforced sometimes is 0 which upsets sanitizer. Should probably address the root cause, but I don't know how at the moment.
     int indexes[dim];
     int i, j, k, h, status, dimension;
     double biggest[dim][nforced + 1], smallest[dim][nforced + 1];
@@ -498,4 +498,5 @@ int main(int argc, char **argv)
     double discrepancy = oydiscr(points, d, n);
     printf("Discrepancy: %lf\n", discrepancy);
     free(points);
+    free(points_store);
 }
