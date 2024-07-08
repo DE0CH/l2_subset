@@ -8,14 +8,11 @@
 #include "l2_subset.h"
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#define true 1
-#define false 0
 #define die(fmt, ...) do { \
     fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__); \
     exit(EXIT_FAILURE); \
 } while (0)
 typedef long long ll;
-typedef unsigned char bool;
 
 double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
@@ -500,4 +497,3 @@ void print_results(struct weights *w, struct analytics *a) {
     printf("Active point sum: %lf\n", constant + w->total_discrepancy);
     fflush(stdout);
 }
-

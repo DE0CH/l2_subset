@@ -1,11 +1,9 @@
 #ifndef L2_SUBSET_H
 #define L2_SUBSET_H
 
-#include <stddef.h>
+#include <stdbool.h>
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#define true 1
-#define false 0
 #define ACTIVE 1
 #define INACTIVE 0
 #define USE_MATRIX 1
@@ -19,7 +17,6 @@
 } while (0)
 
 typedef long long ll;
-typedef unsigned char bool;
 
 // Structure definitions
 
@@ -88,6 +85,7 @@ struct weights *read_point_file_and_save(struct input_data *data, int argc, char
 int weights_serialize(struct weights *w, char *filename);
 struct weights *weights_deserialize(char *filename, void **mmapedData);
 struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);
+double *read_points_from_file(char *filename, int *d, int *n);
 int free_mmaped_matrix(struct weights *w, void *mmaped_data);
 
 #endif // L2_SUBSET_H
