@@ -80,6 +80,7 @@ void print_matrix(struct weights *w);
 void print_array(double *arr, size_t n);
 
 // Analytics functions
+double total_discrepancy(struct weights *w);
 struct analytics *analytics_alloc(void);
 void analytics_free(struct analytics *a);
 struct analytics *main_loop(struct weights *w);

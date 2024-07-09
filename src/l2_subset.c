@@ -499,6 +499,8 @@ struct analytics *main_loop(struct weights *w) {
         return a;
     }
     do {
+        printf("l2   %lf\n", total_discrepancy(w));
+        printf("linf %lf\n", linf_disc(w));
         size_t i = largest_active_point(w);
         size_t j = smallest_inactive_point(w, i);
         replace_points(w, i, j);
@@ -520,11 +522,16 @@ void print_results(struct weights *w, struct analytics *a) {
         }
     }
     printf("\n");
-    double constant = 1.0 / (double)pow(3, w->d);
+    
     printf("Number of iterations: %lld\n", a->num_iterations);
-    printf("Active point sum: %lf\n", constant + w->total_discrepancy);
+    printf("Active point sum: %lf\n", total_discrepancy(w));
     printf("linf discrepancy: %lf\n", linf_disc(w));
     fflush(stdout);
+}
+
+double total_discrepancy(struct weights *w) {
+    double constant = 1.0 / (double)pow(3, w->d);
+    return constant + w->total_discrepancy;
 }
 
 double linf_disc(struct weights *w) {
