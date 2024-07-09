@@ -4,7 +4,7 @@
 
 // expects each point on its own line with real positions.
 // expects first line to be "dim npoints reals"--from thiemard
-
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -12,9 +12,11 @@
 #include <string.h>
 #include "l2_subset.h"
 
-int comparedim;
-double globallower;
-double glob_bound;
+struct global
+{
+    double globallower;
+    double glob_bound;
+};
 
 // Split this file into main and shift parts
 
@@ -27,8 +29,9 @@ int cmpdbl(const void *a, const void *b)
     return 1;
 }
 
-int cmpkeyk(const void *pt1, const void *pt2)
+int cmpkeyk(const void *pt1, const void *pt2, void *arg)
 {
+    int comparedim = *(int *)arg;
     double a = (*(double **)pt1)[comparedim], b = (*(double **)pt2)[comparedim];
     if (a < b)
         return -1;
@@ -46,7 +49,7 @@ void usage()
 
 double oydiscr_cell(int npoints, int dim, int rempoints,
                     double **forced, int nforced,
-                    double *lowerleft, double *upperright)
+                    double *lowerleft, double *upperright, struct global *g)
 {
     double discr, maxdiscr, coordlist[dim][nforced + 1]; // actually coordlist[dim][nforced] is enough but nforced sometimes is 0 which upsets sanitizer. Should probably address the root cause, but I don't know how at the moment.
     int indexes[dim];
@@ -92,7 +95,7 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
     {
         maxdiscr = discr;
     }
-    if (maxdiscr < globallower)
+    if (maxdiscr < g->globallower)
     {
         for (i = 0; i < dim; i++)
         {
@@ -160,9 +163,9 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
 #pragma GCC diagnostic push                            // save the actual diag context
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized" // disable maybe warnings
     maxpoints[0] = indexes[0];
+#pragma GCC diagnostic pop // restore previous diag context
     for (i = 1; i < dim; i++)
         maxpoints[i] = maxpoints[i - 1] + indexes[i];
-#pragma GCC diagnostic pop // restore previous diag context
 #ifdef SPAM
     fprintf(stderr, "Categorization: %d lower-left, %d internal.\n", rempoints, maxpoints[dim - 1]);
     for (i = 0; i < dim; i++)
@@ -268,9 +271,9 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
         }
     }
     // fprintf(stderr, "Get out cell2\n");
-    if (maxdiscr > globallower)
+    if (maxdiscr > g->globallower)
     {
-        globallower = maxdiscr;
+        g->globallower = maxdiscr;
     }
     for (i = 0; i < dim; i++)
     {
@@ -297,10 +300,9 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
 //   ON upper-right counts as out (except if previous).
 double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
                    double **forced, int nforced, int cdim,
-                   double *lowerleft, double *upperright)
+                   double *lowerleft, double *upperright, struct global *g)
 {
     double coord, forcedcoord, lowedge = 0.0, highedge;
-    // int comparedim;
     int newcount = 0, forcedidx, i, j, previdx = 0, newforcedidx, resort = 0, curridx;
     int newrempoints, wasfinal = 0;
     double maxdiscr = 0.0, discr;
@@ -320,17 +322,17 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
         free(newforced);
         discr = oydiscr_cell(npoints, dim, rempoints,
                              forced, nforced,
-                             lowerleft, upperright);
-        if (discr > glob_bound)
+                             lowerleft, upperright, g);
+        if (discr > g->glob_bound)
         {
-            glob_bound = discr;
+            g->glob_bound = discr;
         }
         return discr;
     }
 
-    comparedim = cdim;
-    qsort(pointset, rempoints, sizeof(double *), cmpkeyk);
-    qsort(forced, nforced, sizeof(double *), cmpkeyk);
+    int comparedim = cdim;
+    qsort_r(pointset, rempoints, sizeof(double *), cmpkeyk, &comparedim);
+    qsort_r(forced, nforced, sizeof(double *), cmpkeyk, &comparedim);
     i = 0;
     forcedidx = 0;
     while ((i < rempoints) || (forcedidx < nforced))
@@ -387,7 +389,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
         // 3. make call with properly adjusted boundaries, update variables
         discr = oydiscr_int(pointset, npoints, dim, newrempoints,
                             newforced, newforcedidx, cdim + 1,
-                            lowerleft, upperright);
+                            lowerleft, upperright, g);
         if (discr > maxdiscr)
         {
             maxdiscr = discr;
@@ -395,7 +397,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
         if (resort)
         {
             comparedim = cdim;
-            qsort(pointset, rempoints, sizeof(double *), cmpkeyk); // HERE!!!!!
+            qsort_r(pointset, rempoints, sizeof(double *), cmpkeyk, &comparedim);
             resort = 0;
         }
         while ((forcedidx < nforced) && (forced[forcedidx][cdim] == highedge))
@@ -416,7 +418,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
     upperright[cdim] = 1.0;
     discr = oydiscr_int(pointset, npoints, dim, rempoints,
                         newforced, nforced, cdim + 1,
-                        lowerleft, upperright);
+                        lowerleft, upperright, g);
     if (discr > maxdiscr)
     {
         maxdiscr = discr;
@@ -428,6 +430,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
 
 double oydiscr(double **pointset, int dim, int npoints)
 {
+    struct global g;
     double lowerleft[dim], upperright[dim];
     double **pre_force = malloc(2 * dim * sizeof(double *));
     double discr, *border;
@@ -472,7 +475,7 @@ double oydiscr(double **pointset, int dim, int npoints)
             clone_set[k++] = pointset[i];
     discr = oydiscr_int(pointset, npoints, dim, npoints,
                         pre_force, 0, 0,
-                        lowerleft, upperright); // Careful, this is called npoints like in original code but is equal to kpoints
+                        lowerleft, upperright, &g); // Careful, this is called npoints like in original code but is equal to kpoints
     for (i = 0; i < dim; i++)
         free(pre_force[i]);
     free(pre_force);

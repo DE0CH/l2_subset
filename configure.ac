@@ -31,5 +31,5 @@ AC_CHECK_HEADER([stdlib.h], [], [AC_MSG_ERROR([stdlib.h is required but not foun
 AC_CHECK_HEADER([string.h], [], [AC_MSG_ERROR([string.h is required but not found])])
 
 AC_CONFIG_FILES([Makefile])
-CFLAGS="-Wall -Werror -O3 -UDEBUG_SLOW -DCOMPUTE_MODE=2"
+CFLAGS="-Wall -Wno-unknown-warning-option -Werror -O3 -UDEBUG_SLOW -DCOMPUTE_MODE=2 -std=gnu99"
 AC_OUTPUT
