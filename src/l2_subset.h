@@ -16,8 +16,6 @@
     exit(EXIT_FAILURE); \
 } while (0)
 
-typedef long long ll;
-
 // Structure definitions
 
 struct weights {
@@ -38,13 +36,13 @@ struct weights {
 };
 
 struct input_data {
-    ll n_trials;
-    ll seed;
+    long long n_trials;
+    long long seed;
     char *output_filename;
 };
 
 struct analytics {
-    ll num_iterations;
+    long long num_iterations;
 };
 
 // Function prototypes

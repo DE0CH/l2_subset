@@ -12,7 +12,6 @@
     fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__); \
     exit(EXIT_FAILURE); \
 } while (0)
-typedef long long ll;
 
 double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
@@ -292,6 +291,11 @@ double *read_points_from_file(char *filename, int *d, int *n) { // return the po
     if (fscanf(file, "%d %d %*f", d, n) != 2) {
         die("Could not read dimensions. Hint: check if the file has the right format\n");
     }
+
+    if (*d < 2) {
+        die("The dimension must be at least 2\n");
+    }
+
     double *points = (double *)malloc(*n * *d * sizeof(double));
 
     for (int i = 0; i < *n**d; i++) {
@@ -410,6 +414,10 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
     read += fread(&n, sizeof(size_t), 1, file);
     read += fread(&m, sizeof(size_t), 1, file);
     read += fread(&d, sizeof(size_t), 1, file);
+    if (read != 3) {
+        fclose(file);
+        return NULL;
+    }
     struct weights *w = weights_alloc(n);
 #if COMPUTE_MODE == USE_MATRIX
     size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
