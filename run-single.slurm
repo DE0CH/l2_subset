@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -n 1
-#SBATCH --array=0-1000
+#SBATCH --array=1-1000
 #SBATCH --time=00:30:00
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
