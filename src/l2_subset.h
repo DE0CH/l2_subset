@@ -84,6 +84,7 @@ struct analytics *analytics_alloc(void);
 void analytics_free(struct analytics *a);
 struct analytics *main_loop(struct weights *w);
 void print_results(struct weights *w, struct analytics *a);
+double linf_disc(struct weights *w);
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]);
 size_t weight_serialized_file_size(struct serialize_header h);

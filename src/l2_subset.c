@@ -6,6 +6,8 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include "l2_subset.h"
+#include "dem_disc.h"
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define die(fmt, ...) do { \
@@ -521,10 +523,11 @@ void print_results(struct weights *w, struct analytics *a) {
     double constant = 1.0 / (double)pow(3, w->d);
     printf("Number of iterations: %lld\n", a->num_iterations);
     printf("Active point sum: %lf\n", constant + w->total_discrepancy);
+    printf("linf discrepancy: %lf\n", linf_disc(w));
     fflush(stdout);
 }
 
-void linf_disc(struct weights *w) {
+double linf_disc(struct weights *w) {
     int n = w->n;
     int d = w->d;
     int m = w->m;
@@ -536,4 +539,7 @@ void linf_disc(struct weights *w) {
             j++;
         }
     }
+    double ans = oydiscr(points, d, m);
+    free(points);
+    return ans;
 }
