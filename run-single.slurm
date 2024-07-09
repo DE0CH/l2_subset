@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -n 1
 #SBATCH --array=1-1000
-#SBATCH --time=00:30:00
+#SBATCH --time=02:00:00
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 
