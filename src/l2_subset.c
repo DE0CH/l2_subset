@@ -299,6 +299,9 @@ double *read_points_from_file(char *filename, int *d, int *n) { // return the po
             die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
         }
     }
+    if (fscanf(file, "%lf", points) == 1) {
+        die("Too many points. Hint: check if you have given the right number of points at the top of the file\n");
+    }
     fclose(file);
     return points;
 }
