@@ -12,6 +12,7 @@ export M=50
 export DIM=3
 
 generate_points() {
+    echo "" > output.txt
     make -C build clean
     make -C build
     echo "Generating $N points"
