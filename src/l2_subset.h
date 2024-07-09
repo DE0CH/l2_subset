@@ -26,10 +26,10 @@ struct weights {
 #if COMPUTE_MODE == USE_MATRIX
     double *entries;
 #elif COMPUTE_MODE == USE_POINTS
-    double *points;
 #else
     #error "Invalid COMPUTE_MODE"
-#endif 
+#endif
+    double *points;
     double *point_weights;
     double total_discrepancy;
     bool *points_category;
@@ -45,6 +45,12 @@ struct analytics {
     long long num_iterations;
 };
 
+struct serialize_header {
+    size_t n;
+    size_t m;
+    size_t d;
+};
+
 // Function prototypes
 
 // Weights functions
@@ -53,9 +59,9 @@ void replace_points(struct weights *w, size_t dest, size_t src);
 void add_point(struct weights *w, size_t rc);
 void remove_point(struct weights *w, size_t src);
 void recalculate_weights(struct weights *w);
-struct weights *weights_alloc(size_t n);
+struct weights *weights_alloc(size_t d, size_t n);
 void weights_free(struct weights *w);
-void process_points(struct weights *w, double *points, int d, int m, int n);
+void process_points(struct weights *w);
 size_t largest_active_point(struct weights *w);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point);
@@ -80,6 +86,7 @@ struct analytics *main_loop(struct weights *w);
 void print_results(struct weights *w, struct analytics *a);
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]);
+size_t weight_serialized_file_size(struct serialize_header h);
 int weights_serialize(struct weights *w, char *filename);
 struct weights *weights_deserialize(char *filename, void **mmapedData);
 struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);

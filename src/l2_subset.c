@@ -175,7 +175,7 @@ double w_ij(double* X, int i, int j, int d, int m, int n) {
     }
 }
 
-struct weights *weights_alloc(size_t n) {
+struct weights *weights_alloc(size_t d, size_t n) {
     struct weights *w = (struct weights *)malloc(sizeof(struct weights));
 #if COMPUTE_MODE == USE_MATRIX
     w->entries = (double *)malloc(n * n * sizeof(double));
@@ -184,6 +184,7 @@ struct weights *weights_alloc(size_t n) {
     #error "Invalid COMPUTE_MODE"
 #endif
     w->n = n;
+    w->points = (double *)malloc(n * d * sizeof(double));
     w->point_weights = (double *)malloc(n * sizeof(double));
     w->points_category = (bool *)malloc(n * sizeof(bool));
     return w;
@@ -193,13 +194,13 @@ void weights_free(struct weights *w) {
 #if COMPUTE_MODE == USE_MATRIX
     free(w->entries);
 #elif COMPUTE_MODE == USE_POINTS
-    free(w->points);
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
+    free(w->points);
     free(w->point_weights);
     free(w->points_category);
-    free(w);    
+    free(w);
 }
 
 void select_random_points(struct weights *w) {
@@ -212,20 +213,17 @@ void select_random_points(struct weights *w) {
     recalculate_weights(w);
 }
 
-void process_points(struct weights *w, double *points, int d, int m, int n) {
+void process_points(struct weights *w) {
 #if COMPUTE_MODE == USE_MATRIX
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            w->entries[i * n + j] = w_ij(points, i, j, d, m, n);
+    for (int i = 0; i < w->n; ++i) {
+        for (int j = 0; j < w->n; ++j) {
+            w->entries[i * w->n + j] = w_ij(w->points, i, j, w->d, w->m, w->n);
         }
     }
 #elif COMPUTE_MODE == USE_POINTS
-    w->points = points;
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
-    w->d = d;
-    w->m = m;
 }
 
 void resevoir_sample(size_t *resevoir, size_t n, size_t k) {
@@ -238,7 +236,7 @@ void resevoir_sample(size_t *resevoir, size_t n, size_t k) {
             resevoir[j] = i;
         }
     }
-} 
+}
 
 // length of the array is k
 // length of mask is n
@@ -265,7 +263,7 @@ double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t
 }
 
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
-    size_t min = SIZE_MAX; 
+    size_t min = SIZE_MAX;
     for (size_t i = 0; i < w->n; i++) {
         if (w->points_category[i] == INACTIVE && (min == SIZE_MAX || relative_inactive_weight(w, i, largest_active_point) <= relative_inactive_weight(w, min, largest_active_point))) {
             min = i;
@@ -311,28 +309,27 @@ double *read_points_from_file(char *filename, int *d, int *n) { // return the po
 }
 
 struct weights *read_point_file(struct input_data *data, int argc, char *argv[]) { // return the points
-    
+
     if (argc != 5) {
         die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
     }
     int m = atoi_or_die(argv[2]);
     int seed = atoi_or_die(argv[3]);
     int n_trials = atoi_or_die(argv[4]);
-    
+
     data->n_trials = n_trials;
     data->seed = seed;
 
     int d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
-    struct weights *w = weights_alloc(n);
-#if COMPUTE_MODE == USE_MATRIX
-    process_points(w, points, d, m, n);
-    free(points);
-#elif COMPUTE_MODE == USE_POINTS
-    process_points(w, points, d, m, n);
-#else
-    #error "Invalid COMPUTE_MODE"
-#endif
+    struct weights *w = weights_alloc(d, n);
+    free(w->points);
+    w->points = points;
+    w->m = m;
+    w->n = n;
+    w->d = d;
+    process_points(w);
+    process_points(w);
 
     return w;
 }
@@ -359,15 +356,18 @@ struct weights *read_point_file_and_save(struct input_data *data, int argc, char
     int d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
     data->output_filename = argv[3];
-    struct weights *w = weights_alloc(n);
-    process_points(w, points, d, m, n);
-#if COMPUTE_MODE == USE_MATRIX
-    free(points);
-#elif COMPUTE_MODE == USE_POINTS
-#else
-    #error "Invalid COMPUTE_MODE"
-#endif
+    struct weights *w = weights_alloc(d, n);
+    free(w->points);
+    w->points = points;
+    w->m = m;
+    w->n = n;
+    w->d = d;
+    process_points(w);
     return w;
+}
+
+size_t round_up(size_t location, size_t alignment) {
+    return (location + alignment - 1) & ~(alignment - 1);
 }
 
 int weights_serialize(struct weights *w, char *filename) {
@@ -376,20 +376,25 @@ int weights_serialize(struct weights *w, char *filename) {
         return 1;
     }
     size_t written = 0;
-#if COMPUTE_MODE == USE_MATRIX
-    size_t total = 3 + w->n * w->n;
-#elif COMPUTE_MODE == USE_POINTS
-    size_t total = 3 + w->n * w->d;
-#else
-    #error "Invalid COMPUTE_MODE"
-#endif
-    written += fwrite(&w->n, sizeof(size_t), 1, file);
-    written += fwrite(&w->m, sizeof(size_t), 1, file);
-    written += fwrite(&w->d, sizeof(size_t), 1, file);
+    size_t total = 0;
+    struct serialize_header h;
+    h.n = w->n;
+    h.m = w->m;
+    h.d = w->d;
+
+    written += fwrite(&h, sizeof(struct serialize_header), 1, file);
+    total += 1;
+    // pad zero until alignment of double
+    size_t diff = round_up(sizeof(struct serialize_header), sizeof(double)) - sizeof(struct serialize_header);
+    char padding = '\0';
+    written += fwrite(&padding, sizeof(char), diff, file);
+    total += diff;
+    written += fwrite(w->points, sizeof(double), w->n * w->d, file);
+    total += w->n * w->d;
 #if COMPUTE_MODE == USE_MATRIX
     written += fwrite(w->entries, sizeof(double), w->n * w->n, file);
+    total += w->n * w->n;
 #elif COMPUTE_MODE == USE_POINTS
-    written += fwrite(w->points, sizeof(double), w->n * w->d, file);
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
@@ -400,50 +405,63 @@ int weights_serialize(struct weights *w, char *filename) {
     return 0;
 }
 
+size_t weight_serialized_file_size(struct serialize_header h) {
+    size_t padding_length = round_up(sizeof(struct serialize_header), sizeof(double)) - sizeof(struct serialize_header);
+    size_t filesize = sizeof(struct serialize_header) + padding_length + h.n * h.d * sizeof(double);
+#if COMPUTE_MODE == USE_MATRIX
+    filesize += h.n * h.n * sizeof(double);
+#elif COMPUTE_MODE == USE_POINTS
+#else
+    #error "Invalid COMPUTE_MODE"
+#endif
+    return filesize;
+}
+
 struct weights *weights_deserialize(char *filename, void **mmapedData) {
-    
+
     // mmap the file to entries
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         return NULL;
     }
-    size_t n;
-    size_t m;
-    size_t d;
-    size_t read = 0;
-    read += fread(&n, sizeof(size_t), 1, file);
-    read += fread(&m, sizeof(size_t), 1, file);
-    read += fread(&d, sizeof(size_t), 1, file);
-    if (read != 3) {
+    struct serialize_header h;
+    size_t read = fread(&h, sizeof(struct serialize_header), 1, file);
+    if (read != 1) {
         fclose(file);
         return NULL;
     }
-    struct weights *w = weights_alloc(n);
+    size_t n = h.n;
+    size_t m = h.m;
+    size_t d = h.d;
+    size_t padding_length = round_up(sizeof(struct serialize_header), sizeof(double)) - sizeof(struct serialize_header);
+    fseek(file, padding_length, SEEK_CUR);
+    struct weights *w = weights_alloc(d, n);
+    free(w->points);
 #if COMPUTE_MODE == USE_MATRIX
-    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
     free(w->entries);
 #elif COMPUTE_MODE == USE_POINTS
-    size_t filesize = sizeof(size_t) * 3 + n * d * sizeof(double);
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
     w->m = m;
     w->d = d;
     w->n = n;
+    size_t filesize = weight_serialized_file_size(h);
 
     *mmapedData = mmap(NULL, filesize, PROT_READ, MAP_PRIVATE, fileno(file), 0);
     if (*mmapedData == MAP_FAILED) {
         fclose(file);
         return NULL;
     }
-    
-    size_t offset = 3;
+
+    size_t offset = sizeof(struct serialize_header) + padding_length;
+    double *points = (double *)((char *)*mmapedData + offset);
+    w->points = points;
+    offset += sizeof(double) * n * d;
 #if COMPUTE_MODE == USE_MATRIX
-    double *entries = (double *)((size_t *)*mmapedData + offset);
+    double *entries = (double *)((char *)*mmapedData + offset);
     w->entries = entries;
 #elif COMPUTE_MODE == USE_POINTS
-    double *points = (double *)((size_t *)*mmapedData + offset);
-    w->points = points;
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
@@ -451,14 +469,11 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
 }
 
 int free_mmaped_matrix(struct weights *w, void *mmaped_data) {
-    size_t n = w->n;
-#if COMPUTE_MODE == USE_MATRIX
-    size_t filesize = sizeof(size_t) * 3 + n * n * sizeof(double);
-#elif COMPUTE_MODE == USE_POINTS
-    size_t filesize = sizeof(size_t) * 3 + n * w->d * sizeof(double);
-#else
-    #error "Invalid COMPUTE_MODE"
-#endif
+    struct serialize_header h;
+    h.n = w->n;
+    h.m = w->m;
+    h.d = w->d;
+    size_t filesize = weight_serialized_file_size(h);
     if (munmap(mmaped_data, filesize) == -1) {
         return 1;
     }
@@ -507,4 +522,18 @@ void print_results(struct weights *w, struct analytics *a) {
     printf("Number of iterations: %lld\n", a->num_iterations);
     printf("Active point sum: %lf\n", constant + w->total_discrepancy);
     fflush(stdout);
+}
+
+void linf_disc(struct weights *w) {
+    int n = w->n;
+    int d = w->d;
+    int m = w->m;
+    double **points = malloc(m * sizeof(double *));
+    int j = 0;
+    for (int i = 0; i < n; i++) {
+        if (w->points_category[i] == ACTIVE) {
+            points[j] = w->points + i * d;
+            j++;
+        }
+    }
 }
