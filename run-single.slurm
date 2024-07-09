@@ -34,7 +34,6 @@ run_trial() {
         echo "Starting trial $trial"
         build/l2_subset_from_compiled_matrix build/large_points.p "$trial" | tee "$temp_dir/l2_subset_log.txt"
         grep "Active points:" "$temp_dir/l2_subset_log.txt" | sed 's/Active points: //g' > "$temp_dir/selected_points.txt"
-        echo "Verifying trial $trial"
         python3 src/filter_point.py build/large_points.txt "$temp_dir/selected_points.txt" > "$temp_dir/selected_pf.txt"
         echo -n "Trial $trial: L infinity: "
         build/linf_disc "$temp_dir/selected_pf.txt"
