@@ -160,20 +160,20 @@ void recalculate_weights(struct weights *w) {
 }
 
 double w_ij(double* X, int i, int j, int d, int m, int n) {
+    double product_term1 = 1.0;
+    double product_term2 = 1.0;
+
     if (i == j) {
-        double prod1 = 1.0;
-        double prod2 = 1.0;
         for (int h = 0; h < d; h++) {
-            prod1 *= (1 - pow(X[i * d + h], 2));
-            prod2 *= (1 - X[i * d + h]);
+            product_term1 *= (1 + 2 * X[i * d + h] - 2 * X[i * d + h] * X[i * d + h]) / 4;
+            product_term2 *= (1 - fabs(X[i * d + h] - X[j * d + h])) / 2;
         }
-        return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
+        return -2.0 / m * product_term1 + 1.0 / (m * m) * product_term2;
     } else {
-        double prod = 1.0;
         for (int h = 0; h < d; h++) {
-            prod *= min(1 - X[i * d + h], 1 - X[j * d + h]);
+            product_term2 *= (1 - fabs(X[i * d + h] - X[j * d + h])) / 2;
         }
-        return prod / (m * m);
+        return 1.0 / (m * m) * product_term2;
     }
 }
 
