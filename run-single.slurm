@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -n 1
-#SBATCH --array=1-1000
+#SBATCH --array=1-100
 #SBATCH --time=24:00:00
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
@@ -14,7 +14,7 @@ export DIM=3
 generate_points() {
     echo "" > output.txt
     make -C build clean
-    make -C build
+    make -C build CFLAGS="-Wall -Wno-unknown-warning-option -Werror -O3 -UDEBUG_SLOW -DCOMPUTE_MODE=2 -std=gnu99"
     mkdir -p output
     echo "Generating $N points"
     build/gen_points "$DIM" build/large_points.txt "$N"
@@ -36,6 +36,8 @@ run_trial() {
         build/l2_subset_from_compiled_matrix build/large_points.p "$trial" | tee "$temp_dir/l2_subset_log.txt"
         grep "Active points:" "$temp_dir/l2_subset_log.txt" | sed 's/Active points: //g' > "$temp_dir/selected_points.txt"
         python3 src/filter_point.py build/large_points.txt "$temp_dir/selected_points.txt" > "$temp_dir/selected_pf.txt"
+        echo -n "python code evaluation: "
+        python3 src/formula.py build/large_points.txt "$temp_dir/selected_points.txt"
         echo -n "Trial $trial: L infinity: "
         build/linf_disc "$temp_dir/selected_pf.txt"
         rm -r "$temp_dir"
