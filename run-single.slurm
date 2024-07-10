@@ -30,7 +30,6 @@ run_trial() {
     set -eo pipefail  # Ensure error handling is applied within the function
     local trial=$1
     local temp_dir=$(mktemp -d)
-    local output_file=$(mktemp)
     $(
     {
         echo "Starting trial $trial"
@@ -40,10 +39,8 @@ run_trial() {
         echo -n "Trial $trial: L infinity: "
         build/linf_disc "$temp_dir/selected_pf.txt"
         rm -r "$temp_dir"
-    } &> "$output_file"
+    } > "output/$trial.txt"
     )
-    cat "$output_file" > "output/$trial.txt"
-    rm "$output_file"
 }
 export -f run_trial
 
