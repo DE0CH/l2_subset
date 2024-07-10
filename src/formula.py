@@ -27,10 +27,7 @@ def d_star_2(X):
     term3 = 1 / (n ** 2) * term3_sum
     
     # Combine terms
-    if (i == j):
-        d_star = term1 + term2 + term3
-    else:
-        d_star = term1 + term3
+    d_star = term1 + term2 + term3
     
     return d_star
 
