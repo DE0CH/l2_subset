@@ -522,7 +522,7 @@ void print_results(struct weights *w, struct analytics *a) {
         }
     }
     printf("\n");
-    
+
     printf("Number of iterations: %lld\n", a->num_iterations);
     printf("Active point sum: %lf\n", total_discrepancy(w));
     printf("linf discrepancy: %lf\n", linf_disc(w));
