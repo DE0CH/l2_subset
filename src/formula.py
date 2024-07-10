@@ -10,20 +10,27 @@ def d_star_2(X):
     # Second term
     term2_sum = 0
     for i in range(n):
-        prod = np.prod(1 - X[i, :] ** 2)
+        prod = 1.0
+        for j in range(d):
+            prod *= (1 + 2 * X[i, j] - 2 * X[i, j] ** 2) / 4
         term2_sum += prod
-    term2 = (2 ** (1 - d)) / n * term2_sum
+    term2 = -2 / n * term2_sum
     
     # Third term
     term3_sum = 0
     for i in range(n):
         for j in range(n):
-            prod = np.prod(np.minimum(1 - X[i, :], 1 - X[j, :]))
+            prod = 1.0
+            for k in range(d):
+                prod *= (1 - abs(X[i, k] - X[j, k])) / 2
             term3_sum += prod
-    term3 = (1 / n ** 2) * term3_sum
+    term3 = 1 / (n ** 2) * term3_sum
     
     # Combine terms
-    d_star = term1 - term2 + term3
+    if (i == j):
+        d_star = term1 + term2 + term3
+    else:
+        d_star = term1 + term3
     
     return d_star
 

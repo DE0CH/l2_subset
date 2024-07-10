@@ -34,7 +34,7 @@ void replace_points(struct weights *w, size_t dest, size_t src) {
     add_point(w, src);
 #if DEBUG_SLOW
     if (!isclose(predicted_change, w->total_discrepancy - old_total_discrepancy)) {
-        fprintf(stderr, "Predicted change: %lf, actual change: %lf\n", predicted_change, w->total_discrepancy - old_total_discrepancy);
+        fprintf(stderr, "Predicted change: %.10lf, actual change: %.10lf\n", predicted_change, w->total_discrepancy - old_total_discrepancy);
         fprintf(stderr, "dest: %zu, src: %zu\n", dest, src);
         exit(EXIT_FAILURE);
     }
@@ -43,7 +43,7 @@ void replace_points(struct weights *w, size_t dest, size_t src) {
 
 void print_array(double *arr, size_t n) {
     for (size_t i = 0; i < n; ++i) {
-        printf("%lf ", arr[i]);
+        printf("%.10lf ", arr[i]);
     }
     printf("\n");
 }
@@ -51,7 +51,7 @@ void print_array(double *arr, size_t n) {
 void print_matrix(struct weights *w) {
     for (size_t i = 0; i < w->n; ++i) {
         for (size_t j = 0; j < w->n; ++j) {
-            printf("%lf ", get_weight(w, i, j));
+            printf("%.10lf ", get_weight(w, i, j));
         }
         printf("\n");
     }
@@ -100,7 +100,7 @@ void debug_cmp(struct weights *w) {
         printf("point_weights: ");
         print_array(point_weights, n);
         print_array(w->point_weights, n);
-        printf("found: %lf expected: %lf\n", total_discrepancy, w->total_discrepancy);
+        printf("found: %.10lf expected: %.10lf\n", total_discrepancy, w->total_discrepancy);
         fprintf(stderr, "total_discrepancy mismatch\n");
         exit(EXIT_FAILURE);
     }
@@ -160,20 +160,20 @@ void recalculate_weights(struct weights *w) {
 }
 
 double w_ij(double* X, int i, int j, int d, int m, int n) {
+    double product_term1 = 1.0;
+    double product_term2 = 1.0;
+
     if (i == j) {
-        double prod1 = 1.0;
-        double prod2 = 1.0;
         for (int h = 0; h < d; h++) {
-            prod1 *= (1 - pow(X[i * d + h], 2));
-            prod2 *= (1 - X[i * d + h]);
+            product_term1 *= (1 + 2 * X[i * d + h] - 2 * X[i * d + h] * X[i * d + h]) / 4;
+            product_term2 *= (1 - fabs(X[i * d + h] - X[j * d + h])) / 2;
         }
-        return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
+        return -2.0 / m * product_term1 + 1.0 / (m * m) * product_term2;
     } else {
-        double prod = 1.0;
         for (int h = 0; h < d; h++) {
-            prod *= min(1 - X[i * d + h], 1 - X[j * d + h]);
+            product_term2 *= (1 - fabs(X[i * d + h] - X[j * d + h])) / 2;
         }
-        return prod / (m * m);
+        return 1.0 / (m * m) * product_term2;
     }
 }
 
@@ -499,8 +499,8 @@ struct analytics *main_loop(struct weights *w) {
         return a;
     }
     do {
-        printf("l2   %lf\n", total_discrepancy(w));
-        printf("linf %lf\n", linf_disc(w));
+        printf("l2   %.10lf\n", total_discrepancy(w));
+        printf("linf %.10lf\n", linf_disc(w));
         size_t i = largest_active_point(w);
         size_t j = smallest_inactive_point(w, i);
         replace_points(w, i, j);
@@ -524,8 +524,8 @@ void print_results(struct weights *w, struct analytics *a) {
     printf("\n");
 
     printf("Number of iterations: %lld\n", a->num_iterations);
-    printf("Active point sum: %lf\n", total_discrepancy(w));
-    printf("linf discrepancy: %lf\n", linf_disc(w));
+    printf("Active point sum: %.10lf\n", total_discrepancy(w));
+    printf("linf discrepancy: %.10lf\n", linf_disc(w));
     fflush(stdout);
 }
 
