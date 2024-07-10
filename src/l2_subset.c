@@ -542,11 +542,15 @@ double linf_disc(struct weights *w) {
     int j = 0;
     for (int i = 0; i < n; i++) {
         if (w->points_category[i] == ACTIVE) {
-            points[j] = w->points + i * d;
+            points[j] = malloc(d * sizeof(double));
+            memcpy(points[j], w->points + i * d, d * sizeof(double));
             j++;
         }
     }
     double ans = oydiscr(points, d, m);
+    for (int i = 0; i < m; i++) {
+        free(points[i]);
+    }
     free(points);
     return ans;
 }
