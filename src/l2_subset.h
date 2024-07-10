@@ -51,6 +51,11 @@ struct serialize_header {
     size_t d;
 };
 
+struct pair {
+    size_t i;
+    size_t j;
+};
+
 // Function prototypes
 
 // Weights functions

@@ -490,27 +490,43 @@ void analytics_free(struct analytics *a) {
     free(a);
 }
 
+struct pair most_significant_pair(struct weights *w) {
+    struct pair p = {SIZE_MAX, SIZE_MAX};
+    double min = 0.0;
+    for (size_t i = 0; i < w->n; i++) {
+        if (w->points_category[i] == ACTIVE) {
+            for (size_t j = 0; j < w->n; j++) {
+                if (w->points_category[j] == INACTIVE) {
+                    double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
+                    if (weight <= min) {
+                        min = weight;
+                        p.i = i;
+                        p.j = j;
+                    }
+                }
+            }
+        }
+    }
+    return p;
+
+}
+
 struct analytics *main_loop(struct weights *w) {
     struct analytics *a = analytics_alloc();
     a->num_iterations = 0;
-    double old_sum;
-    double new_sum = w->total_discrepancy;
     if (w->n == w->m) {
         return a;
     }
-    do {
+    while (true) {
         printf("l2   %.10lf\n", total_discrepancy(w));
         printf("linf %.10lf\n", linf_disc(w));
-        size_t i = largest_active_point(w);
-        size_t j = smallest_inactive_point(w, i);
-        replace_points(w, i, j);
-        old_sum = new_sum;
-        new_sum = w->total_discrepancy;
-        if (old_sum <= new_sum) {
-            replace_points(w, j, i);
+        struct pair p = most_significant_pair(w);
+        if (p.i == SIZE_MAX) {
+            break;
         }
+        replace_points(w, p.i, p.j);
         a->num_iterations++;
-    } while (new_sum < old_sum);
+    }
     return a;
 }
 
