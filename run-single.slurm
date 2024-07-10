@@ -15,6 +15,7 @@ generate_points() {
     echo "" > output.txt
     make -C build clean
     make -C build
+    mkdir -p output
     echo "Generating $N points"
     build/gen_points "$DIM" build/large_points.txt "$N"
 
@@ -41,7 +42,7 @@ run_trial() {
         rm -r "$temp_dir"
     } &> "$output_file"
     )
-    cat "$output_file" >> "output.txt"
+    cat "$output_file" > "output/$trial.txt"
     rm "$output_file"
 }
 export -f run_trial
