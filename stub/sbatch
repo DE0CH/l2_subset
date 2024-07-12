@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+
+import argparse
+import re
+import os
+from subprocess import run
+
+parser = argparse.ArgumentParser(description='sbatch stub')
+parser.add_argument('script', type=str, help='The script to run')
+args = parser.parse_args()
+
+slurm_job_id = 1234
+slurm_array_id = 3
+output_file = f'slurm-{slurm_job_id}_{slurm_array_id}.out'
+error_file = f'slurm-{slurm_job_id}_{slurm_array_id}.err'
+has_array = False
+
+with open(args.script, 'r') as f:
+    for line in f:
+        if match := re.match("#SBATCH -o (.*)", line):
+            output_file = match.group(1)
+            output_file = output_file.replace("%A", str(slurm_job_id))
+            output_file = output_file.replace("%a", str(slurm_array_id))
+        if match := re.match("#SBATCH -e (.*)", line):
+            error_file = match.group(1)
+            error_file = error_file.replace("%A", str(slurm_job_id))
+            error_file = error_file.replace("%a", str(slurm_array_id))
+        if match := re.match("#SBATCH --array=.*", line):
+            has_array = True
+
+if not has_array:
+    raise ValueError("stub only supports array jobs")
+
+os.makedirs(os.path.dirname(output_file), exist_ok=True)
+stdout_f = open(output_file, 'w')
+os.makedirs(os.path.dirname(error_file), exist_ok=True)
+stderr_f = open(error_file, 'w')
+
+my_env = os.environ.copy()
+my_env['SLURM_ARRAY_TASK_ID'] = str(slurm_array_id)
+print(f'Submitted batch job {slurm_job_id}')
+run([args.script], stdout=stdout_f, stderr=stderr_f, check=False, env=my_env)
+stdout_f.close()
+stderr_f.close()
