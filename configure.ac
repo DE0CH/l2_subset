@@ -1,4 +1,4 @@
-AC_INIT([l2_subset],[1.0])
+AC_INIT([l2_subset],[1.0.0])
 AM_INIT_AUTOMAKE
 AC_PROG_CC
 # Save the current LIBS value
