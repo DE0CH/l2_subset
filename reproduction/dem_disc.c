@@ -51,159 +51,19 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
                     double **forced, int nforced,
                     double *lowerleft, double *upperright, struct global *g)
 {
-    double discr, maxdiscr, coordlist[dim][nforced + 1]; // actually coordlist[dim][nforced] is enough but nforced sometimes is 0 which upsets sanitizer. Should probably address the root cause, but I don't know how at the moment.
-    int indexes[dim];
-    int i, j, k, h, status, dimension;
-    double biggest[dim][nforced + 1], smallest[dim][nforced + 1];
-    double ***big_bord;
-    double ***small_bord;
-    big_bord = malloc(dim * sizeof(double **));
-    small_bord = malloc(dim * sizeof(double **));
-    for (i = 0; i < dim; i++)
-    {
-        big_bord[i] = malloc((nforced + 1) * sizeof(double *));
-        small_bord[i] = malloc((nforced + 1) * sizeof(double *));
-        for (j = 0; j < (nforced + 1); j++)
-        {
-            big_bord[i][j] = malloc(dim * sizeof(double));
-            small_bord[i][j] = malloc(dim * sizeof(double));
-            for (k = 0; k < dim; k++)
-            {
-                big_bord[i][j][k] = 0.0;
-                small_bord[i][j][k] = 0.0;
-            }
-        }
-    }
-    int maxpoints[dim];
-    // biggest[i][j]: biggest product of coords 0--i for hitting j points
-    // smallest[i][j]: smallest product of coords 0--i for hitting j+1 points
-    // maxpoints[i]: number of points you get in total from coords 0--i
-    double vol1 = 1.0, vol2 = 1.0;
-    for (i = 0; i < dim; i++)
-    {
-        vol1 *= lowerleft[i];
-        vol2 *= upperright[i];
-    }
-    // fprintf(stderr, "Get in cell\n");
-    maxdiscr = vol2 - (double)rempoints / npoints;
-    discr = (double)(rempoints + nforced) / npoints - vol1;
+    double discr = (double)(rempoints + nforced) / npoints;
+    double maxdiscr = (double)rempoints / npoints;
     if (discr > maxdiscr)
     {
         maxdiscr = discr;
     }
     if (maxdiscr < g->globallower)
     {
-        for (i = 0; i < dim; i++)
-        {
-            for (j = 0; j < (nforced + 1); j++)
-            {
-                free(small_bord[i][j]);
-                free(big_bord[i][j]);
-            }
-            free(big_bord[i]);
-            free(small_bord[i]);
-        }
-        free(big_bord);
-        free(small_bord);
         return maxdiscr;
     }
     // quicker code for use in some easy cells
-    // otherwise, get to work...
-    for (i = 0; i < dim; i++)
-    {
-        indexes[i] = 0;
-        for (j = 0; j <= nforced; j++)
-        {
-            smallest[i][j] = 1.0;
-            biggest[i][j] = 0.0;
-        }
-    }
-    for (i = 0; i < nforced; i++)
-    {
-        status = 0;
-        for (j = 0; j < dim; j++)
-        {
-            // order is chosen to handle final box
-            if (forced[i][j] <= lowerleft[j])
-                continue;
-            else if (forced[i][j] >= upperright[j])
-                break;
-            else
-            { // strictly internal
-                if (status)
-                {
-                    fprintf(stderr, "PROBLEM: Point occurs as double-internal\n");
-                    fflush(stderr);
-                    abort();
-                }
-                status = 1;
-                dimension = j;
-            }
-        }
-        if (j == dim)
-        { // else: hit "break", skip
-            if (status)
-            {
-                coordlist[dimension][indexes[dimension]] = forced[i][dimension];
-                indexes[dimension] += 1;
-            }
-            else
-            { // completely internal
-                rempoints++;
-            }
-        }
-    }
 
-    for (i = 0; i < dim; i++)
-        qsort(&(coordlist[i][0]), indexes[i], sizeof(double), cmpdbl);
-#pragma GCC diagnostic push                            // save the actual diag context
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized" // disable maybe warnings
-    maxpoints[0] = indexes[0];
-#pragma GCC diagnostic pop // restore previous diag context
-    for (i = 1; i < dim; i++)
-        maxpoints[i] = maxpoints[i - 1] + indexes[i];
-
-    // coord 0 first, since there is no recursion for that:
-    smallest[0][0] = lowerleft[0];
-    small_bord[0][0][0] = lowerleft[0]; // Changed here
-    for (j = 0; j < indexes[0] && j < nforced; j++) // actually indexes[0] cannot be larger than nforced, but the compiler is too dumb to understand that (and I want to use -Werror)
-    {
-        smallest[0][j + 1] = coordlist[0][j];
-        biggest[0][j] = coordlist[0][j];
-        small_bord[0][j + 1][0] = coordlist[0][j]; // Changed here
-        big_bord[0][j][0] = coordlist[0][j];
-    }
-    biggest[0][indexes[0]] = upperright[0];
-    big_bord[0][indexes[0]][0] = upperright[0];
-
-    // INIT CORRECT
-
-    // now, use these to find lower, upper limits
-    // mode: always contain "rempoints", additionally
-    //         pick from smallest[dim-1], biggest[dim-1]
     maxdiscr = 0;
-    // fprintf(stderr, "DynProg time\n");
-    for (i = 0; i <= maxpoints[dim - 1]; i++)
-    {
-        discr = (double)(rempoints + i) / npoints - smallest[dim - 1][i];
-    }
-    // fprintf(stderr, "Get out cell2\n");
-    if (maxdiscr > g->globallower)
-    {
-        g->globallower = maxdiscr;
-    }
-    for (i = 0; i < dim; i++)
-    {
-        for (j = 0; j < (nforced + 1); j++)
-        {
-            free(small_bord[i][j]);
-            free(big_bord[i][j]);
-        }
-        free(big_bord[i]);
-        free(small_bord[i]);
-    }
-    free(big_bord);
-    free(small_bord);
 
     return maxdiscr;
 }
@@ -348,6 +208,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
 double oydiscr(double **pointset, int dim, int npoints)
 {
     struct global g;
+    g.globallower = 0.0;
     double lowerleft[dim], upperright[dim];
     double **pre_force = malloc(2 * dim * sizeof(double *));
     double discr, *border;
