@@ -6,8 +6,6 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define ACTIVE 1
 #define INACTIVE 0
-#define USE_MATRIX 1
-#define USE_POINTS 2
 #define die(fmt, ...) do { \
     fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__); \
     exit(EXIT_FAILURE); \

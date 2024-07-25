@@ -55,10 +55,6 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
     int indexes[dim];
     int i, j, k, h, status, dimension;
     double biggest[dim][nforced + 1], smallest[dim][nforced + 1];
-
-    /*if (upperright[0]>0.999 && upperright[1]>0.999 && upperright[2]>0.999 && upperright[3]>0.999 && upperright[4]>0.999)
-        debugg-=1;*/
-    // double big_bord[dim][nforced+1][dim], small_bord[dim][nforced+1][dim]; // Could do it with less memory but this will do for the moment. Need double because of upperright and unknown box choices
     double ***big_bord;
     double ***small_bord;
     big_bord = malloc(dim * sizeof(double **));
@@ -166,21 +162,6 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
 #pragma GCC diagnostic pop // restore previous diag context
     for (i = 1; i < dim; i++)
         maxpoints[i] = maxpoints[i - 1] + indexes[i];
-#ifdef SPAM
-    fprintf(stderr, "Categorization: %d lower-left, %d internal.\n", rempoints, maxpoints[dim - 1]);
-    for (i = 0; i < dim; i++)
-    {
-        if (!indexes[i])
-        {
-            fprintf(stderr, "Direction %d: Nothing.\n", i);
-            continue;
-        }
-        fprintf(stderr, "Direction %d: %g", i, coordlist[i][0]);
-        for (j = 1; j < indexes[i]; j++)
-            fprintf(stderr, ", %g", coordlist[i][j]);
-        fprintf(stderr, "\n");
-    }
-#endif
 
     // coord 0 first, since there is no recursion for that:
     smallest[0][0] = lowerleft[0];
@@ -197,78 +178,14 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
 
     // INIT CORRECT
 
-    for (i = 1; i < dim; i++)
-    {
-        // first the special loop for smallest: "nothing contributed by us"
-        for (j = 0; j <= maxpoints[i - 1]; j++)
-        {
-            smallest[i][j] = smallest[i - 1][j] * lowerleft[i];
-            for (h = 0; h < i; h++)
-                small_bord[i][j][h] = small_bord[i - 1][j][h];
-            small_bord[i][j][i] = lowerleft[i];
-        }
-        // main loop:
-        for (j = 0; j < indexes[i]; j++)
-        {
-            vol1 = coordlist[i][j];
-            for (k = 0; k <= maxpoints[i - 1]; k++)
-            {
-                // for biggest: vol1 is coordinate that adds j new points
-                vol2 = biggest[i - 1][k] * vol1;
-                if (vol2 > biggest[i][j + k])
-                {
-                    biggest[i][j + k] = vol2;
-
-                    for (h = 0; h < i; h++)
-                        big_bord[i][j + k][h] = big_bord[i - 1][k][h]; // Copy the values we had obtained for this pre-set before. yes, memcpy would be better.
-                    big_bord[i][j + k][i] = coordlist[i][j];           // Add the new dimension that wasn't known beforehand.
-                }
-                // for smallest: vol1 is coordinate that adds j+1 new points
-                vol2 = smallest[i - 1][k] * vol1;
-                if (vol2 < smallest[i][j + k + 1])
-                {
-                    for (h = 0; h < i; h++)
-                        small_bord[i][j + k + 1][h] = small_bord[i - 1][k][h]; // Changed here
-                    small_bord[i][j + k + 1][i] = coordlist[i][j];             // Changed here
-                    smallest[i][j + k + 1] = vol2;
-                }
-            }
-        }
-        // last, special loop for biggest: "all of us"
-        for (j = 0; j <= maxpoints[i - 1]; j++)
-        {
-            vol1 = biggest[i - 1][j] * upperright[i];
-            if (vol1 > biggest[i][j + indexes[i]])
-            {
-                biggest[i][j + indexes[i]] = vol1;
-                for (h = 0; h < i; h++)
-                    big_bord[i][j + indexes[i]][h] = big_bord[i - 1][j][h];
-                big_bord[i][j + indexes[i]][i] = upperright[i];
-            }
-        }
-    }
-
     // now, use these to find lower, upper limits
     // mode: always contain "rempoints", additionally
     //         pick from smallest[dim-1], biggest[dim-1]
     maxdiscr = 0;
     // fprintf(stderr, "DynProg time\n");
     for (i = 0; i <= maxpoints[dim - 1]; i++)
-    { // i counts internal points
-        // small box
-        // fprintf(stderr, "%d\n",i);
+    {
         discr = (double)(rempoints + i) / npoints - smallest[dim - 1][i];
-        if (discr > maxdiscr)
-        {
-            maxdiscr = discr;
-        }
-        // big box
-        discr = biggest[dim - 1][i] - (double)(rempoints + i) / npoints;
-        // fprintf(stderr, "Hi2\n");
-        if (discr > maxdiscr)
-        {
-            maxdiscr = discr;
-        }
     }
     // fprintf(stderr, "Get out cell2\n");
     if (maxdiscr > g->globallower)
