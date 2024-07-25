@@ -431,6 +431,8 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
 double oydiscr(double **pointset, int dim, int npoints)
 {
     struct global g;
+    g.globallower = 0.0;
+    g.glob_bound = 0.0;
     double lowerleft[dim], upperright[dim];
     double **pre_force = malloc(2 * dim * sizeof(double *));
     double discr, *border;
