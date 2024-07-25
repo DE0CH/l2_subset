@@ -20,19 +20,8 @@ double get_weight(struct weights *w, size_t i, size_t j) {
 }
 
 void replace_points(struct weights *w, size_t dest, size_t src) {
-#if DEBUG_SLOW
-    double predicted_change = -w->point_weights[dest] + relative_inactive_weight(w, src, dest);
-    double old_total_discrepancy = w->total_discrepancy;
-#endif
     remove_point(w, dest);
     add_point(w, src);
-#if DEBUG_SLOW
-    if (!isclose(predicted_change, w->total_discrepancy - old_total_discrepancy)) {
-        fprintf(stderr, "Predicted change: %.10lf, actual change: %.10lf\n", predicted_change, w->total_discrepancy - old_total_discrepancy);
-        fprintf(stderr, "dest: %zu, src: %zu\n", dest, src);
-        exit(EXIT_FAILURE);
-    }
-#endif
 }
 
 void print_array(double *arr, size_t n) {
@@ -111,10 +100,6 @@ void add_point(struct weights *w, size_t src) {
     }
     w->points_category[j] = ACTIVE;
     w->point_weights[j] = old_weight;
-#if DEBUG_SLOW
-    fprintf(stderr, "Adding point %zu\n", j);
-    debug_cmp(w);
-#endif
 }
 
 
@@ -128,10 +113,6 @@ void remove_point(struct weights *w, size_t src) {
     }
     w->point_weights[j] = old_weight;
     w->points_category[j] = INACTIVE;
-#if DEBUG_SLOW
-    fprintf(stderr, "Removing point %zu\n", j);
-    debug_cmp(w);
-#endif
 }
 
 void recalculate_weights(struct weights *w) {
