@@ -32,10 +32,6 @@ struct input_data {
     char *output_filename;
 };
 
-struct analytics {
-    long long num_iterations;
-};
-
 struct serialize_header {
     size_t n;
     size_t m;
@@ -66,16 +62,11 @@ void array_to_mask(bool *mask, size_t *array, size_t n, size_t k);
 int atoi_or_die(char *str);
 struct weights *read_point_file(struct input_data *data, int argc, char *argv[]);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
-bool isclose(double a, double b);
-void print_matrix(struct weights *w);
-void print_array(double *arr, size_t n);
 
 // Analytics functions
 double total_discrepancy(struct weights *w);
-struct analytics *analytics_alloc(void);
-void analytics_free(struct analytics *a);
-struct analytics *main_loop(struct weights *w);
-void print_results(struct weights *w, struct analytics *a);
+void main_loop(struct weights *w);
+void print_results(struct weights *w);
 double linf_disc(struct weights *w);
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]);
