@@ -7,6 +7,9 @@
 #include <sys/mman.h>
 #include "l2_subset.h"
 #include "dem_disc.h"
+#include <time.h>
+
+int pp[1000001];
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -143,7 +146,7 @@ void remove_point(struct weights *w, size_t src) {
 void recalculate_weights(struct weights *w) {
     w->total_discrepancy = 0.0;
     for (size_t i = 0; i < w->n; i++) {
-        w->point_weights[i] = 0.0;
+	w->point_weights[i] = 0.0;
         for (size_t j = 0; j < w->n; j++) {
             if (w->points_category[j] == ACTIVE || i == j) {
                 double change = get_weight(w, i, j) + get_weight(w, j, i);
@@ -490,23 +493,63 @@ void analytics_free(struct analytics *a) {
     free(a);
 }
 
-struct pair most_significant_pair(struct weights *w) {
+void shuffle(size_t n){
+    if (n > 1){
+        size_t i;
+        for (i = 0; i < n - 1; i++) {
+          size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+          int t = pp[j];
+          pp[j] = pp[i];
+          pp[i] = t;
+        }
+    }
+}
+
+
+
+struct pair most_significant_pair(struct weights *w, int flag) {
     struct pair p = {SIZE_MAX, SIZE_MAX};
     double min = 0.0;
-    for (size_t i = 0; i < w->n; i++) {
+    if (flag == 1){
+
+      shuffle(w->n);
+    }
+    if (flag >= 1){
+
+      for (size_t ii = 0; ii < w->n; ii++) {
+	size_t i = pp[ii];
         if (w->points_category[i] == ACTIVE) {
-            for (size_t j = 0; j < w->n; j++) {
-                if (w->points_category[j] == INACTIVE) {
-                    double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
-                    if (weight <= min) {
+            for (size_t jj = 0; jj < w->n; jj++) {
+		size_t j = pp[jj];
+		if (w->points_category[j] == INACTIVE) {
+		    double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
+                    if (weight < min) {
                         min = weight;
                         p.i = i;
                         p.j = j;
-                    }
+                    	return p;
+		    }
                 }
             }
         }
+      }
     }
+    else{
+	int i, j;
+	while (true) {   
+		i = rand() % (w->n);
+		if (w->points_category[i] == ACTIVE)
+			break;
+	}
+	while (true)  {
+		j = rand() % (w->n);
+		if (w->points_category[j] == INACTIVE)
+			break;
+	}
+	p.i = i;
+	p.j = j;
+    }
+
     return p;
 
 }
@@ -517,14 +560,44 @@ struct analytics *main_loop(struct weights *w) {
     if (w->n == w->m) {
         return a;
     }
+
+    for (int i = 0; i < w->n; i++){
+	pp[i] = i;
+    }
+    // initial values for the best
+    double blinf = 1.0;
+    double bl2 = 1.0;
+
+    // number of perturbations (random exchanges)
+    int pertub = 4;
+
+    // if you want to randomize even more
+    srand(time(NULL));
+
+    struct pair p = most_significant_pair(w,2);
     while (true) {
-        printf("l2   %.10lf\n", total_discrepancy(w));
-        printf("linf %.10lf\n", linf_disc(w));
-        struct pair p = most_significant_pair(w);
-        if (p.i == SIZE_MAX) {
-            break;
+        
+	printf("best: %.10lf %.10lf -- %.10lf %.10lf\n",total_discrepancy(w), linf_disc(w),bl2, blinf);
+
+	if (total_discrepancy(w) < bl2) {
+		bl2 = total_discrepancy(w);
+	}
+        if (linf_disc(w) < blinf) {
+	        blinf = linf_disc(w);
         }
-        replace_points(w, p.i, p.j);
+	p = most_significant_pair(w,1);
+        if (p.i == SIZE_MAX) {
+	
+	    // if arrived to the end, perturb	
+	    printf("----------------------------------------\n");
+	    for (int ii = 0; ii < pertub; ii++){ 
+	    	p = most_significant_pair(w,0);
+           	replace_points(w, p.i, p.j);
+	    }
+	    //break;	
+	}
+	else
+        	replace_points(w, p.i, p.j);
         a->num_iterations++;
     }
     return a;
