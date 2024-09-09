@@ -510,44 +510,43 @@ void shuffle(size_t n){
 struct pair most_significant_pair(struct weights *w, int flag) {
     struct pair p = {SIZE_MAX, SIZE_MAX};
     double min = 0.0;
-    if (flag == 1){
+    if (flag == 1) {
 
       shuffle(w->n);
     }
-    if (flag >= 1){
+    if (flag >= 1) {
 
-      for (size_t ii = 0; ii < w->n; ii++) {
-	size_t i = pp[ii];
-        if (w->points_category[i] == ACTIVE) {
-            for (size_t jj = 0; jj < w->n; jj++) {
-		size_t j = pp[jj];
-		if (w->points_category[j] == INACTIVE) {
-		    double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
-                    if (weight < min) {
-                        min = weight;
-                        p.i = i;
-                        p.j = j;
-                    	return p;
-		    }
+        for (size_t ii = 0; ii < w->n; ii++) {
+            size_t i = pp[ii];
+            if (w->points_category[i] == ACTIVE) {
+                for (size_t jj = 0; jj < w->n; jj++) {
+                    size_t j = pp[jj];
+                    if (w->points_category[j] == INACTIVE) {
+                        double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
+                        if (weight < min) {
+                            min = weight;
+                            p.i = i;
+                            p.j = j;
+                            return p;
+                        }
+                    }
                 }
             }
         }
-      }
-    }
-    else{
-	int i, j;
-	while (true) {   
-		i = rand() % (w->n);
-		if (w->points_category[i] == ACTIVE)
-			break;
-	}
-	while (true)  {
-		j = rand() % (w->n);
-		if (w->points_category[j] == INACTIVE)
-			break;
-	}
-	p.i = i;
-	p.j = j;
+    } else {
+        int i, j;
+        while (true) {   
+            i = rand() % (w->n);
+            if (w->points_category[i] == ACTIVE)
+                break;
+        }
+        while (true) {
+            j = rand() % (w->n);
+            if (w->points_category[j] == INACTIVE)
+                break;
+        }
+        p.i = i;
+        p.j = j;
     }
 
     return p;
@@ -561,8 +560,8 @@ struct analytics *main_loop(struct weights *w) {
         return a;
     }
 
-    for (int i = 0; i < w->n; i++){
-	pp[i] = i;
+    for (int i = 0; i < w->n; i++) {
+        pp[i] = i;
     }
     // initial values for the best
     double blinf = 1.0;
@@ -577,27 +576,27 @@ struct analytics *main_loop(struct weights *w) {
     struct pair p = most_significant_pair(w,2);
     while (true) {
         
-	printf("best: %.10lf %.10lf -- %.10lf %.10lf\n",total_discrepancy(w), linf_disc(w),bl2, blinf);
+        printf("best: %.10lf %.10lf -- %.10lf %.10lf\n",total_discrepancy(w), linf_disc(w),bl2, blinf);
 
-	if (total_discrepancy(w) < bl2) {
-		bl2 = total_discrepancy(w);
-	}
-        if (linf_disc(w) < blinf) {
-	        blinf = linf_disc(w);
+        if (total_discrepancy(w) < bl2) {
+            bl2 = total_discrepancy(w);
         }
-	p = most_significant_pair(w,1);
+        if (linf_disc(w) < blinf) {
+            blinf = linf_disc(w);
+        }
+        p = most_significant_pair(w,1);
         if (p.i == SIZE_MAX) {
-	
-	    // if arrived to the end, perturb	
-	    printf("----------------------------------------\n");
-	    for (int ii = 0; ii < pertub; ii++){ 
-	    	p = most_significant_pair(w,0);
-           	replace_points(w, p.i, p.j);
-	    }
-	    //break;	
-	}
-	else
-        	replace_points(w, p.i, p.j);
+        
+            // if arrived to the end, perturb	
+            printf("----------------------------------------\n");
+            for (int ii = 0; ii < pertub; ii++){ 
+                p = most_significant_pair(w,0);
+                replace_points(w, p.i, p.j);
+            }
+            //break;	
+        } else {
+            replace_points(w, p.i, p.j);
+        }
         a->num_iterations++;
     }
     return a;
