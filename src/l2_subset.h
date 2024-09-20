@@ -33,6 +33,7 @@ struct weights {
     double *point_weights;
     double total_discrepancy;
     bool *points_category;
+    size_t *pp; // permuation of lengh n, used for shuffling
 };
 
 struct input_data {

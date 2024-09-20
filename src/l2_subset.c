@@ -9,8 +9,6 @@
 #include "dem_disc.h"
 #include <time.h>
 
-int pp[1000001];
-
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define die(fmt, ...) do { \
@@ -192,6 +190,7 @@ struct weights *weights_alloc(size_t d, size_t n) {
     w->points = (double *)malloc(n * d * sizeof(double));
     w->point_weights = (double *)malloc(n * sizeof(double));
     w->points_category = (bool *)malloc(n * sizeof(bool));
+    w->pp = (size_t *)malloc(n * sizeof(size_t));
     return w;
 }
 
@@ -205,6 +204,7 @@ void weights_free(struct weights *w) {
     free(w->points);
     free(w->point_weights);
     free(w->points_category);
+    free(w->pp);
     free(w);
 }
 
@@ -493,12 +493,11 @@ void analytics_free(struct analytics *a) {
     free(a);
 }
 
-void shuffle(size_t n){
+void shuffle(size_t* pp, size_t n){
     if (n > 1){
-        size_t i;
-        for (i = 0; i < n - 1; i++) {
+        for (size_t i = 0; i < n - 1; i++) {
           size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-          int t = pp[j];
+          size_t t = pp[j];
           pp[j] = pp[i];
           pp[i] = t;
         }
@@ -510,9 +509,9 @@ void shuffle(size_t n){
 struct pair most_significant_pair(struct weights *w, int flag) {
     struct pair p = {SIZE_MAX, SIZE_MAX};
     double min = 0.0;
+    size_t *pp = w->pp;
     if (flag == 1) {
-
-      shuffle(w->n);
+      shuffle(pp, w->n);
     }
     if (flag >= 1) {
 
@@ -561,7 +560,7 @@ struct analytics *main_loop(struct weights *w) {
     }
 
     for (int i = 0; i < w->n; i++) {
-        pp[i] = i;
+        w->pp[i] = i;
     }
     // initial values for the best
     double blinf = 1.0;
