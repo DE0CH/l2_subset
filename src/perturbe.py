@@ -34,6 +34,7 @@ points = random.sample(list(range(n)), m)
 
 for i in range(args.iterations):
     lines = []
+    print("Iteration", i)
     p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
     for line in p.stdout:
         line = line.decode('utf-8')
@@ -53,7 +54,8 @@ for i in range(args.iterations):
     if p.returncode != 0:
         raise subprocess.CalledProcessError(p.returncode, p.args)
 
-    if new_l2 < best_l2:
+    print("perturbing for next iteration")
+    if new_linf < best_linf:
         best_l2 = new_l2
         best_linf = new_linf
         points = new_points
