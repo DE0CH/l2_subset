@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include "l2_subset.h"
+#include "mt19937-64/mt64.h"
 
 int main(int argc, char *argv[]) {
     struct input_data data;

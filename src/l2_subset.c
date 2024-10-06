@@ -292,7 +292,7 @@ double *read_points_from_file(char *filename, long long *d, long long *n) { // r
     if (file == NULL) {
         die("Could not open file: %s", filename);
     }
-    if (fscanf(file, "%d %d %*f", d, n) != 2) {
+    if (fscanf(file, "%lld %lld %*f", d, n) != 2) {
         die("Could not read dimensions. Hint: check if the file has the right format\n");
     }
 
@@ -307,7 +307,8 @@ double *read_points_from_file(char *filename, long long *d, long long *n) { // r
             die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
         }
     }
-    if (fscanf(file, "%lf") == 1) {
+    double temp;
+    if (fscanf(file, "%lf", &temp) == 1) {
         die("Too many points. Hint: check if you have given the right number of points at the top of the file\n");
     }
     fclose(file);
@@ -354,8 +355,8 @@ struct weights *read_from_compiled_matrix(struct input_data *data, int argc, cha
 }
 
 struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *data, int argc, char *argv[], void **mmaped_data) {\
-    if (argc != 4) {
-        die("Usage: %s <compiled_matrix_file> <seed> <starting_points_file>. Selecte m low discrepancy points.", argv[0]);
+    if (argc < 3) {
+        die("Usage: %s <compiled_matrix_file> <seed> <starting point #1> <starting point #2> .... Selecte m low discrepancy points.", argv[0]);
     }
     long long seed = atoi_or_die(argv[2]);
     data->seed = seed;
@@ -363,30 +364,23 @@ struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *da
     if (w == NULL) {
         die("Could not read compiled matrix file: %s", argv[1]);
     }
-    read_starting_points_from_file(argv[3], w);
-    return w;
-}
-
-void read_starting_points_from_file(char *filename, struct weights *w) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        die("Could not open file: %s", filename);
+    if (argc != 3 + w->m) {
+        printf("%lld hello\n", w->n);
+        die("Usage: %s <compiled_matrix_file> <seed> <starting point #1> <starting point #2> .... Selecte m low discrepancy points.", argv[0]);
     }
     memset(w->points_category, INACTIVE, w->n * sizeof(bool));
-    for (size_t i = 0; i < w->n; i++) {
-        size_t pi;
-        if(fscan(file, "%zu", pi) != 1) {
-            die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually indexes representing the index (0-indexed) of the point\n");
+    for (size_t i = 0; i < w->m; i++) {
+        if (3 + i >= argc) {
+            die("%s not enough starting point is present in the argument", argv[0]);
         }
+        size_t pi = atoi_or_die(argv[3 + i]);
         if (pi >= w->n) {
             die("Point index out of bounds\n");
         }
         w->points_category[pi] = ACTIVE;
     }
-    if (fscanf(file, "%zu") == 1) {
-        die("Too many points. Hint: check if you have given the right number of indexes\n");
-    }
     recalculate_weights(w);
+    return w;
 }
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]) {
@@ -471,9 +465,9 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
         fclose(file);
         return NULL;
     }
-    size_t n = h.n;
-    size_t m = h.m;
-    size_t d = h.d;
+    long long n = h.n;
+    long long m = h.m;
+    long long d = h.d;
     size_t padding_length = round_up(sizeof(struct serialize_header), sizeof(double)) - sizeof(struct serialize_header);
     fseek(file, padding_length, SEEK_CUR);
     struct weights *w = weights_alloc(d, n);
@@ -506,6 +500,7 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
+    fclose(file);
     return w;
 }
 
@@ -532,13 +527,11 @@ void analytics_free(struct analytics *a) {
 void shuffle(struct weights *w){
     size_t *pp = w->pp;
     size_t n = w->n;
-    if (n > 1){
-        for (size_t i = 0; i < n - 1; i++) {
-          size_t j = i + genrand64_int64() / (RAND_MAX / (n - i) + 1);
-          size_t t = pp[j];
-          pp[j] = pp[i];
-          pp[i] = t;
-        }
+    for (size_t i = 0; i < n - 1; i++) {
+        size_t j = i + genrand64_int64() % (n - i);
+        size_t t = pp[j];
+        pp[j] = pp[i];
+        pp[i] = t;
     }
 }
 
@@ -627,9 +620,6 @@ double linf_disc(struct weights *w) {
         }
     }
     double ans = oydiscr(points, d, m);
-    for (size_t i = 0; i < m; i++) {
-        free(points[i]);
-    }
     free(points);
     return ans;
 }

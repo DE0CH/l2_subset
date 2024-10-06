@@ -19,9 +19,9 @@
 // Structure definitions
 
 struct weights {
-    size_t n;
-    size_t m;
-    size_t d;
+    long long n;
+    long long m;
+    long long d;
     char mode;
 #if COMPUTE_MODE == USE_MATRIX
     double *entries;
@@ -47,9 +47,9 @@ struct analytics {
 };
 
 struct serialize_header {
-    size_t n;
-    size_t m;
-    size_t d;
+    long long n;
+    long long m;
+    long long d;
 };
 
 struct pair {

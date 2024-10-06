@@ -46,7 +46,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    fprintf(fp, "%d %d 0.0\n", dim, nb);
+    fprintf(fp, "%lld %lld 0.0\n", dim, nb);
     for (i = 0; i < nb; i++)
     {
         double v[dim];
