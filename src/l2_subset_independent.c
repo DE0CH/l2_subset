@@ -4,6 +4,7 @@
 #include "mt19937-64/mt64.h"
 
 int main(int argc, char *argv[]) {
+    setvbuf(stdout, NULL, _IOLBF, 0);
     struct input_data data;
     struct weights *w = read_point_file(&data, argc, argv);
     init_genrand64(data.seed);

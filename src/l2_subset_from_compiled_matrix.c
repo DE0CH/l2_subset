@@ -1,9 +1,11 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/mman.h>
 #include "l2_subset.h"
 #include "mt19937-64/mt64.h"
 
 int main(int argc, char *argv[]) {
+    setvbuf(stdout, NULL, _IOLBF, 0);
     struct input_data data;
     void *mmaped_data;
     struct weights *w = read_from_compiled_matrix(&data, argc, argv, &mmaped_data);
