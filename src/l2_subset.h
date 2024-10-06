@@ -100,6 +100,7 @@ size_t weight_serialized_file_size(struct serialize_header h);
 int weights_serialize(struct weights *w, char *filename);
 struct weights *weights_deserialize(char *filename, void **mmapedData);
 struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);
+struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *data, int argc, char *argv[], void **mmaped_data);
 double *read_points_from_file(char *filename, long long *d, long long *n);
 int free_mmaped_matrix(struct weights *w, void *mmaped_data);
 

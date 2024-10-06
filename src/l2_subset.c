@@ -307,7 +307,7 @@ double *read_points_from_file(char *filename, long long *d, long long *n) { // r
             die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
         }
     }
-    if (fscanf(file, "%lf", points) == 1) {
+    if (fscanf(file, "%lf") == 1) {
         die("Too many points. Hint: check if you have given the right number of points at the top of the file\n");
     }
     fclose(file);
@@ -353,6 +353,41 @@ struct weights *read_from_compiled_matrix(struct input_data *data, int argc, cha
     return w;
 }
 
+struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *data, int argc, char *argv[], void **mmaped_data) {\
+    if (argc != 4) {
+        die("Usage: %s <compiled_matrix_file> <seed> <starting_points_file>. Selecte m low discrepancy points.", argv[0]);
+    }
+    long long seed = atoi_or_die(argv[2]);
+    data->seed = seed;
+    struct weights *w = weights_deserialize(argv[1], mmaped_data);
+    if (w == NULL) {
+        die("Could not read compiled matrix file: %s", argv[1]);
+    }
+    read_starting_points_from_file(argv[3], w);
+    return w;
+}
+
+void read_starting_points_from_file(char *filename, struct weights *w) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        die("Could not open file: %s", filename);
+    }
+    memset(w->points_category, INACTIVE, w->n * sizeof(bool));
+    for (size_t i = 0; i < w->n; i++) {
+        size_t pi;
+        if(fscan(file, "%zu", pi) != 1) {
+            die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually indexes representing the index (0-indexed) of the point\n");
+        }
+        if (pi >= w->n) {
+            die("Point index out of bounds\n");
+        }
+        w->points_category[pi] = ACTIVE;
+    }
+    if (fscanf(file, "%zu") == 1) {
+        die("Too many points. Hint: check if you have given the right number of indexes\n");
+    }
+    recalculate_weights(w);
+}
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]) {
     if (argc != 4) {
@@ -494,7 +529,9 @@ void analytics_free(struct analytics *a) {
     free(a);
 }
 
-void shuffle(size_t* pp, size_t n){
+void shuffle(struct weights *w){
+    size_t *pp = w->pp;
+    size_t n = w->n;
     if (n > 1){
         for (size_t i = 0; i < n - 1; i++) {
           size_t j = i + genrand64_int64() / (RAND_MAX / (n - i) + 1);
@@ -505,98 +542,53 @@ void shuffle(size_t* pp, size_t n){
     }
 }
 
-
-
-struct pair most_significant_pair(struct weights *w, int flag) {
+struct pair most_significant_pair(struct weights *w) {
     struct pair p = {SIZE_MAX, SIZE_MAX};
     double min = 0.0;
     size_t *pp = w->pp;
-    if (flag == 1) {
-      shuffle(pp, w->n);
-    }
-    if (flag >= 1) {
-
-        for (size_t ii = 0; ii < w->n; ii++) {
-            size_t i = pp[ii];
-            if (w->points_category[i] == ACTIVE) {
-                for (size_t jj = 0; jj < w->n; jj++) {
-                    size_t j = pp[jj];
-                    if (w->points_category[j] == INACTIVE) {
-                        double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
-                        if (weight < min) {
-                            min = weight;
-                            p.i = i;
-                            p.j = j;
-                            return p;
-                        }
+    for (size_t ii = 0; ii < w->n; ii++) {
+        size_t i = pp[ii];
+        if (w->points_category[i] == ACTIVE) {
+            for (size_t jj = 0; jj < w->n; jj++) {
+                size_t j = pp[jj];
+                if (w->points_category[j] == INACTIVE) {
+                    double weight = -w->point_weights[i] + relative_inactive_weight(w, j, i);
+                    if (weight < min) {
+                        min = weight;
+                        p.i = i;
+                        p.j = j;
+                        return p;
                     }
                 }
             }
         }
-    } else {
-        int i, j;
-        while (true) {   
-            i = rand() % (w->n);
-            if (w->points_category[i] == ACTIVE)
-                break;
-        }
-        while (true) {
-            j = rand() % (w->n);
-            if (w->points_category[j] == INACTIVE)
-                break;
-        }
-        p.i = i;
-        p.j = j;
     }
-
     return p;
 
 }
 
+void initialise_permuation(struct weights *w) {
+    for (size_t i = 0; i < w->n; i++) {
+        w->pp[i] = i;
+    }
+}
+
 struct analytics *main_loop(struct weights *w) {
     struct analytics *a = analytics_alloc();
+    initialise_permuation(w);
+    shuffle(w);
     a->num_iterations = 0;
     if (w->n == w->m) {
         return a;
     }
-
-    for (int i = 0; i < w->n; i++) {
-        w->pp[i] = i;
-    }
-    // initial values for the best
-    double blinf = 1.0;
-    double bl2 = 1.0;
-
-    // number of perturbations (random exchanges)
-    int pertub = 4;
-
-    // if you want to randomize even more
-    srand(time(NULL));
-
-    struct pair p = most_significant_pair(w,2);
     while (true) {
-        
-        printf("best: %.10lf %.10lf -- %.10lf %.10lf\n",total_discrepancy(w), linf_disc(w),bl2, blinf);
-
-        if (total_discrepancy(w) < bl2) {
-            bl2 = total_discrepancy(w);
-        }
-        if (linf_disc(w) < blinf) {
-            blinf = linf_disc(w);
-        }
-        p = most_significant_pair(w,1);
+        printf("l2   %.10lf\n", total_discrepancy(w));
+        printf("linf %.10lf\n", linf_disc(w));
+        struct pair p = most_significant_pair(w);
         if (p.i == SIZE_MAX) {
-        
-            // if arrived to the end, perturb	
-            printf("----------------------------------------\n");
-            for (int ii = 0; ii < pertub; ii++){ 
-                p = most_significant_pair(w,0);
-                replace_points(w, p.i, p.j);
-            }
-            //break;	
-        } else {
-            replace_points(w, p.i, p.j);
+            break;
         }
+        replace_points(w, p.i, p.j);
         a->num_iterations++;
     }
     return a;

@@ -5,7 +5,7 @@
 int main(int argc, char *argv[]) {
     struct input_data data;
     void *mmaped_data;
-    struct weights *w = read_from_compiled_matrix(&data, argc, argv, &mmaped_data);
+    struct weights *w = read_from_compiled_matrix_w_starting_point(&data, argc, argv, &mmaped_data);
     init_genrand64(data.seed);
     struct analytics *a = main_loop(w);
     print_results(w, a);
@@ -21,3 +21,4 @@ int main(int argc, char *argv[]) {
     weights_free(w);
     return 0;
 }
+ 
