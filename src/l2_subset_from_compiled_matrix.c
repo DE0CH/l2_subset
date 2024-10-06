@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
     struct input_data data;
     void *mmaped_data;
     struct weights *w = read_from_compiled_matrix(&data, argc, argv, &mmaped_data);
-    srand(data.seed);
+    init_genrand64(data.seed);
     select_random_points(w);
     struct analytics *a = main_loop(w);
     print_results(w, a);

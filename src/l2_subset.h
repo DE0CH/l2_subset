@@ -71,19 +71,21 @@ void process_points(struct weights *w);
 size_t largest_active_point(struct weights *w);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point);
-double w_ij(double* X, int i, int j, int d, int m, int n);
+double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n);
 void debug_cmp(struct weights *w);
 void select_random_points(struct weights *w);
 
 // Utility functions
 void resevoir_sample(size_t *resevoir, size_t n, size_t k);
 void array_to_mask(bool *mask, size_t *array, size_t n, size_t k);
-int atoi_or_die(char *str);
+long long atoi_or_die(char *str);
 struct weights *read_point_file(struct input_data *data, int argc, char *argv[]);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 bool isclose(double a, double b);
 void print_matrix(struct weights *w);
 void print_array(double *arr, size_t n);
+void initialise_permuation(struct weights *w);
+void shuffle(struct weights *w);
 
 // Analytics functions
 double total_discrepancy(struct weights *w);
@@ -98,7 +100,7 @@ size_t weight_serialized_file_size(struct serialize_header h);
 int weights_serialize(struct weights *w, char *filename);
 struct weights *weights_deserialize(char *filename, void **mmapedData);
 struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);
-double *read_points_from_file(char *filename, int *d, int *n);
+double *read_points_from_file(char *filename, long long *d, long long *n);
 int free_mmaped_matrix(struct weights *w, void *mmaped_data);
 
 #endif // L2_SUBSET_H

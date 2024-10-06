@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <string.h>
+#include <stdbool.h>
 #include "l2_subset.h"
 
 struct global
@@ -31,7 +32,7 @@ int cmpdbl(const void *a, const void *b)
 
 int cmpkeyk(const void *pt1, const void *pt2, void *arg)
 {
-    int comparedim = *(int *)arg;
+    long long comparedim = *(long long *)arg;
     double a = (*(double **)pt1)[comparedim], b = (*(double **)pt2)[comparedim];
     if (a < b)
         return -1;
@@ -47,13 +48,15 @@ void usage()
 
 /////////////////////////////////////////////////////////
 
-double oydiscr_cell(int npoints, int dim, int rempoints,
-                    double **forced, int nforced,
+double oydiscr_cell(long long npoints, long long dim, long long rempoints,
+                    double **forced, long long nforced,
                     double *lowerleft, double *upperright, struct global *g)
 {
     double discr, maxdiscr, coordlist[dim][nforced + 1]; // actually coordlist[dim][nforced] is enough but nforced sometimes is 0 which upsets sanitizer. Should probably address the root cause, but I don't know how at the moment.
-    int indexes[dim];
-    int i, j, k, h, status, dimension;
+    long long indexes[dim];
+    size_t i, j, k, h;
+    bool status;
+    long long dimension;
     double biggest[dim][nforced + 1], smallest[dim][nforced + 1];
 
     /*if (upperright[0]>0.999 && upperright[1]>0.999 && upperright[2]>0.999 && upperright[3]>0.999 && upperright[4]>0.999)
@@ -78,7 +81,7 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
             }
         }
     }
-    int maxpoints[dim];
+    long long maxpoints[dim];
     // biggest[i][j]: biggest product of coords 0--i for hitting j points
     // smallest[i][j]: smallest product of coords 0--i for hitting j+1 points
     // maxpoints[i]: number of points you get in total from coords 0--i
@@ -124,7 +127,7 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
     }
     for (i = 0; i < nforced; i++)
     {
-        status = 0;
+        status = false;
         for (j = 0; j < dim; j++)
         {
             // order is chosen to handle final box
@@ -140,7 +143,7 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
                     fflush(stderr);
                     abort();
                 }
-                status = 1;
+                status = true;
                 dimension = j;
             }
         }
@@ -298,13 +301,13 @@ double oydiscr_cell(int npoints, int dim, int rempoints,
 // being ON a border changes nothing:
 //   ON lower-left counts as in (including when lowerleft=1)
 //   ON upper-right counts as out (except if previous).
-double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
-                   double **forced, int nforced, int cdim,
+double oydiscr_int(double **pointset, long long npoints, long long dim, long long rempoints,
+                   double **forced, long long nforced, long long cdim,
                    double *lowerleft, double *upperright, struct global *g)
 {
     double coord, forcedcoord, lowedge = 0.0, highedge;
-    int newcount = 0, forcedidx, i, j, previdx = 0, newforcedidx, resort = 0, curridx;
-    int newrempoints, wasfinal = 0;
+    long long newcount = 0, forcedidx, i, j, previdx = 0, newforcedidx, resort = 0, curridx;
+    long long newrempoints, wasfinal = 0;
     double maxdiscr = 0.0, discr;
     double **newforced = malloc((nforced + rempoints) * sizeof(double *));
     // internal vars: previdx points at first element excluded from last pass
@@ -330,7 +333,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
         return discr;
     }
 
-    int comparedim = cdim;
+    long long comparedim = cdim;
     qsort_r(pointset, rempoints, sizeof(double *), cmpkeyk, &comparedim);
     qsort_r(forced, nforced, sizeof(double *), cmpkeyk, &comparedim);
     i = 0;
@@ -428,7 +431,7 @@ double oydiscr_int(double **pointset, int npoints, int dim, int rempoints,
     return maxdiscr;
 }
 
-double oydiscr(double **pointset, int dim, int npoints)
+double oydiscr(double **pointset, long long dim, long long npoints)
 {
     struct global g;
     g.globallower = 0.0;
@@ -437,10 +440,10 @@ double oydiscr(double **pointset, int dim, int npoints)
     double **pre_force = malloc(2 * dim * sizeof(double *));
     double discr, *border;
     double maxcoord;
-    int maxpos;
-    int is_border[npoints];
+    long long maxpos;
+    bool is_border[npoints];
     double **clone_set = malloc(npoints * sizeof(double *));
-    int i, j, k;
+    size_t i, j, k;
     // fprintf(stderr,"Going to int");
     for (i = 0; i < dim; i++)
     {
@@ -455,7 +458,7 @@ double oydiscr(double **pointset, int dim, int npoints)
         pre_force[i] = border;
     }
     for (i = 0; i < npoints; i++)
-        is_border[i] = 0;
+        is_border[i] = false;
     for (i = 0; i < dim; i++)
     {
         maxcoord = -1.0;
@@ -466,7 +469,7 @@ double oydiscr(double **pointset, int dim, int npoints)
                 maxcoord = pointset[j][i];
                 maxpos = j;
             }
-        is_border[maxpos] = 1;
+        is_border[maxpos] = true;
     }
     j = dim;
     k = 0;

@@ -8,6 +8,7 @@
 #include "l2_subset.h"
 #include "dem_disc.h"
 #include <time.h>
+#include "mt19937-64/mt64.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -160,18 +161,18 @@ void recalculate_weights(struct weights *w) {
     }
 }
 
-double w_ij(double* X, int i, int j, int d, int m, int n) {
+double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n) {
     if (i == j) {
         double prod1 = 1.0;
         double prod2 = 1.0;
-        for (int h = 0; h < d; h++) {
+        for (size_t h = 0; h < d; h++) {
             prod1 *= (1 - pow(X[i * d + h], 2));
             prod2 *= (1 - X[i * d + h]);
         }
         return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
     } else {
         double prod = 1.0;
-        for (int h = 0; h < d; h++) {
+        for (size_t h = 0; h < d; h++) {
             prod *= min(1 - X[i * d + h], 1 - X[j * d + h]);
         }
         return prod / (m * m);
@@ -220,8 +221,8 @@ void select_random_points(struct weights *w) {
 
 void process_points(struct weights *w) {
 #if COMPUTE_MODE == USE_MATRIX
-    for (int i = 0; i < w->n; ++i) {
-        for (int j = 0; j < w->n; ++j) {
+    for (size_t i = 0; i < w->n; ++i) {
+        for (size_t j = 0; j < w->n; ++j) {
             w->entries[i * w->n + j] = w_ij(w->points, i, j, w->d, w->m, w->n);
         }
     }
@@ -236,7 +237,7 @@ void resevoir_sample(size_t *resevoir, size_t n, size_t k) {
         resevoir[i] = i;
     }
     for (size_t i = k; i < n; i++) {
-        size_t j = rand() % (i + 1);
+        size_t j = genrand64_int64() % (i + 1);
         if (j < k) {
             resevoir[j] = i;
         }
@@ -277,16 +278,16 @@ size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
     return min;
 }
 
-int atoi_or_die(char *str) {
+long long atoi_or_die(char *str) {
     char *endptr;
-    int result = strtol(str, &endptr, 10);
+    long long result = strtoll(str, &endptr, 10);
     if (*str == '\0' || *endptr != '\0') {
         die("Invalid number: \"%s\"", str);
     }
     return result;
 }
 
-double *read_points_from_file(char *filename, int *d, int *n) { // return the points, write d and n to the pointers supplied in the arugment
+double *read_points_from_file(char *filename, long long *d, long long *n) { // return the points, write d and n to the pointers supplied in the arugment
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         die("Could not open file: %s", filename);
@@ -301,7 +302,7 @@ double *read_points_from_file(char *filename, int *d, int *n) { // return the po
 
     double *points = (double *)malloc(*n * *d * sizeof(double));
 
-    for (int i = 0; i < *n**d; i++) {
+    for (size_t i = 0; i < *n**d; i++) {
         if(fscanf(file, "%lf", &points[i]) != 1) {
             die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
         }
@@ -318,14 +319,14 @@ struct weights *read_point_file(struct input_data *data, int argc, char *argv[])
     if (argc != 5) {
         die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
     }
-    int m = atoi_or_die(argv[2]);
-    int seed = atoi_or_die(argv[3]);
-    int n_trials = atoi_or_die(argv[4]);
+    long long m = atoi_or_die(argv[2]);
+    long long seed = atoi_or_die(argv[3]);
+    long long n_trials = atoi_or_die(argv[4]);
 
     data->n_trials = n_trials;
     data->seed = seed;
 
-    int d, n;
+    long long d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
     struct weights *w = weights_alloc(d, n);
     free(w->points);
@@ -343,7 +344,7 @@ struct weights *read_from_compiled_matrix(struct input_data *data, int argc, cha
     if (argc != 3) {
         die("Usage: %s <compiled_matrix_file> <seed>. Selecte m low discrepancy points.", argv[0]);
     }
-    int seed = atoi_or_die(argv[2]);
+    long long seed = atoi_or_die(argv[2]);
     data->seed = seed;
     struct weights *w = weights_deserialize(argv[1], mmaped_data);
     if (w == NULL) {
@@ -357,8 +358,8 @@ struct weights *read_point_file_and_save(struct input_data *data, int argc, char
     if (argc != 4) {
         die("Usage: %s <points_file> <m> <output_file>. Precompute the matrix and save to output file.", argv[0]);
     }
-    int m = atoi_or_die(argv[2]);
-    int d, n;
+    long long m = atoi_or_die(argv[2]);
+    long long d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
     data->output_filename = argv[3];
     struct weights *w = weights_alloc(d, n);
@@ -496,7 +497,7 @@ void analytics_free(struct analytics *a) {
 void shuffle(size_t* pp, size_t n){
     if (n > 1){
         for (size_t i = 0; i < n - 1; i++) {
-          size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+          size_t j = i + genrand64_int64() / (RAND_MAX / (n - i) + 1);
           size_t t = pp[j];
           pp[j] = pp[i];
           pp[i] = t;
@@ -622,20 +623,19 @@ double total_discrepancy(struct weights *w) {
 }
 
 double linf_disc(struct weights *w) {
-    int n = w->n;
-    int d = w->d;
-    int m = w->m;
+    long long n = w->n;
+    long long d = w->d;
+    long long m = w->m;
     double **points = malloc(m * sizeof(double *));
-    int j = 0;
-    for (int i = 0; i < n; i++) {
+    size_t j = 0;
+    for (size_t i = 0; i < n; i++) {
         if (w->points_category[i] == ACTIVE) {
-            points[j] = malloc(d * sizeof(double));
-            memcpy(points[j], w->points + i * d, d * sizeof(double));
+            points[j] = w->points + i * d;
             j++;
         }
     }
     double ans = oydiscr(points, d, m);
-    for (int i = 0; i < m; i++) {
+    for (size_t i = 0; i < m; i++) {
         free(points[i]);
     }
     free(points);

@@ -6,8 +6,8 @@
 #include <gsl/gsl_qrng.h>
 int main(int argc, char **argv)
 {
-    int i, j;
-    int dim;
+    size_t i, j;
+    long long dim;
     char *endptr;
 
     if (argc != 4) {
@@ -15,14 +15,14 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    dim = strtol(argv[1], &endptr, 10);
+    dim = strtoll(argv[1], &endptr, 10);
     if (*argv[1] == '\0' || *endptr != '\0')
     {
         fprintf(stderr, "Invalid number: %s\n", argv[1]);
         exit(EXIT_FAILURE);
     };
 
-    int nb;
+    long long nb;
 
     FILE *fp;
     fp = fopen(argv[2], "w"); // Careful with dim
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     }
 
     char *endptr2;
-    nb = strtol(argv[3], &endptr2, 10);
+    nb = strtoll(argv[3], &endptr2, 10);
     if (*argv[3] == '\0' || *endptr2 != '\0')
     {
         fprintf(stderr, "Invalid number: %s\n", argv[3]);
