@@ -365,7 +365,6 @@ struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *da
         die("Could not read compiled matrix file: %s", argv[1]);
     }
     if (argc != 3 + w->m) {
-        printf("%lld hello\n", w->n);
         die("Usage: %s <compiled_matrix_file> <seed> <starting point #1> <starting point #2> .... Selecte m low discrepancy points.", argv[0]);
     }
     memset(w->points_category, INACTIVE, w->n * sizeof(bool));
