@@ -34,8 +34,21 @@ build/l2_subset_compile_matrix points.txt $M points.p
 1. Run the trial, the trial number also serves at the seed for the code
 ```bash
 trial=1
-python3 build/l2_subset_from_compiled_matrix points.p $trial
+build/l2_subset_from_compiled_matrix points.p $trial
 ```
+
+### Other modes
+
+There are other modes (i.e. entry point) to run the algorithm. One useful entry is where you specify the starting subset. 
+
+Follow the same building instruction and the first two steps as above. For the third step, you can run
+
+```bash
+trial=1
+build/l2_subset_from_compiled_matrix_w_start_point points.p $trial 0 2 5 6 ...
+```
+
+i.e. you give the indexes (0-indexed) of the starting points. In the example above, you choose 0, 2, 5, 6th, ... points.
 
 ## FAQ
 
