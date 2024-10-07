@@ -185,14 +185,14 @@ double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n
         double prod1 = 1.0;
         double prod2 = 1.0;
         for (size_t h = 0; h < d; h++) {
-            prod1 *= (1 - pow(X[i * d + h], 2));
-            prod2 *= (1 - X[i * d + h]);
+            prod1 *= (3 - pow(X[i * d + h], 2));
+            prod2 *= (2 - X[i * d + h]);
         }
         return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
     } else {
         double prod = 1.0;
         for (size_t h = 0; h < d; h++) {
-            prod *= min(1 - X[i * d + h], 1 - X[j * d + h]);
+            prod *= min(2 - X[i * d + h], 2 - X[j * d + h]);
         }
         return prod / (m * m);
     }
@@ -621,7 +621,7 @@ void print_results(struct weights *w, struct analytics *a) {
 }
 
 double total_discrepancy(struct weights *w) {
-    double constant = 1.0 / (double)pow(3, w->d);
+    double constant = pow((double)4.0/3.0, w->d);
     return constant + w->total_discrepancy;
 }
 
