@@ -60,7 +60,7 @@ void print_matrix(struct weights *w) {
 }
 
 bool isclose(double a, double b) {
-    double rel_tol = 1e-9;
+    double rel_tol = 1e-8;
     double abs_tol = 0.0;
     return (fabs(a-b) <= max(rel_tol * max(fabs(a), fabs(b)), abs_tol));
 }
@@ -161,6 +161,25 @@ void recalculate_weights(struct weights *w) {
     }
 }
 
+void calculate_init_weights(struct weights *w) {
+    w->total_discrepancy = 0.0;
+    for (size_t i = 0; i < w->n; i++) {
+	    w->point_weights[i] = get_weight(w, i, i);
+    }
+#if DEBUG_SLOW
+    bool points_category[w->n];
+    memcpy(points_category, w->points_category, w->n * sizeof(bool));
+    memset(w->points_category, INACTIVE, w->n * sizeof(bool));
+#else
+    bool *points_category = w->points_category;
+#endif
+    for (size_t i = 0; i < w->n; i++) {
+        if (points_category[i] == ACTIVE) {
+            add_point(w, i);
+        }
+    }
+}
+
 double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n) {
     if (i == j) {
         double prod1 = 1.0;
@@ -216,7 +235,7 @@ void select_random_points(struct weights *w) {
 
     resevoir_sample(resevoir, n, m);
     array_to_mask(w->points_category, resevoir, n, m);
-    recalculate_weights(w);
+    calculate_init_weights(w);
 }
 
 void process_points(struct weights *w) {
@@ -378,7 +397,7 @@ struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *da
         }
         w->points_category[pi] = ACTIVE;
     }
-    recalculate_weights(w);
+    calculate_init_weights(w);
     return w;
 }
 
