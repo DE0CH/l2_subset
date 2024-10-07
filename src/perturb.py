@@ -31,6 +31,7 @@ best_l2 = 1
 best_linf = 1
 n, m, d = read_numbers_from_file(args.point_file.name)
 points = random.sample(list(range(n)), m)
+best_points = points
 
 for i in range(args.iterations):
     lines = []
@@ -58,7 +59,8 @@ for i in range(args.iterations):
     if new_linf < best_linf:
         best_l2 = new_l2
         best_linf = new_linf
-        points = new_points
+        best_points = new_points
+    points = best_points.copy()
     other_points = []
     points_set = set(points)
     for i in range(n):
@@ -70,4 +72,4 @@ for i in range(args.iterations):
         t = points[old]
         points[old] = other_points[new]
         other_points[new] = t
-    points = new_points
+
