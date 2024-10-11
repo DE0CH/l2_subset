@@ -33,7 +33,7 @@ try:
     print(f"Compiling matrix")
     subprocess.run(['./l2_subset_compile_matrix', join(temp_dir, 'points.txt'), str(args.m), join(temp_dir, 'points.p')], check=True)
     for i in range(args.num_global_restart):
-        subprocess.run([sys.executable, '-u', '../src/perturb.py', 'points.p', str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart)], check=True)
+        subprocess.run([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart)], check=True)
 finally:
     print("cleaning up temporary directory")
     shutil.rmtree(temp_dir)
