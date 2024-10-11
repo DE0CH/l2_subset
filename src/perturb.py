@@ -21,11 +21,13 @@ def read_numbers_from_file(filename):
 parser = argparse.ArgumentParser()
 parser.add_argument('point_file', type=argparse.FileType('rb'), help='Point file')
 parser.add_argument('seed', type=int, help='Seed for random number generator')
-parser.add_argument('perturbation_number', type=int, help="number of points to pertube")
+parser.add_argument('p', type=int, help="number of points to pertube")
 parser.add_argument('iterations', type=int, help='Number of iterations')
 args = parser.parse_args()
 
 random.seed(args.seed)
+
+print(f"Running with local perturbation. Seed: {args.seed}, p: {args.p}, Iterations: {args.iterations}")
 
 best_l2 = 1
 best_linf = 1
@@ -35,7 +37,7 @@ best_points = points
 
 for i in range(args.iterations):
     lines = []
-    print("Iteration", i)
+    print("Iteration", i + 1)
     p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
     for line in p.stdout:
         line = line.decode('utf-8')
@@ -66,7 +68,7 @@ for i in range(args.iterations):
     for i in range(n):
         if i not in points_set:
             other_points.append(i)
-    for i in range(args.perturbation_number):
+    for i in range(args.p):
         old = random.randrange(0, m)
         new = random.randrange(0, n-m)
         t = points[old]
