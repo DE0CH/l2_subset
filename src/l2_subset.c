@@ -594,7 +594,6 @@ struct analytics *main_loop(struct weights *w) {
     }
     while (true) {
         printf("l2   %.10lf\n", total_discrepancy(w));
-        printf("linf %.10lf\n", linf_disc(w));
         struct pair p = most_significant_pair(w);
         if (p.i == SIZE_MAX) {
             break;
