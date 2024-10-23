@@ -191,7 +191,7 @@ double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n
             prod1 *= (1 - pow(X[i * d + h], alpha +  1)) / (alpha + 1);
             prod2 *= (1 - pow(X[i * d + h], alpha +  2)) / (alpha + 2);
         }
-        return prod2 / (m * m) - prod1 * 2 / m;
+        return prod2 * 2 / m - prod1 / (m * m);
     } else {
         double prod = 1.0;
         for (size_t h = 0; h < d; h++) {
