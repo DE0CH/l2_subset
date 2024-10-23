@@ -22,7 +22,7 @@ struct weights {
     long long n;
     long long m;
     long long d;
-    char mode;
+    double alpha; // alpha as used in Francois's formula
 #if COMPUTE_MODE == USE_MATRIX
     double *entries;
 #elif COMPUTE_MODE == USE_POINTS
@@ -50,6 +50,7 @@ struct serialize_header {
     long long n;
     long long m;
     long long d;
+    double alpha;
 };
 
 struct pair {
@@ -72,7 +73,7 @@ void process_points(struct weights *w);
 size_t largest_active_point(struct weights *w);
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point);
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point);
-double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n);
+double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n, double alpha);
 void debug_cmp(struct weights *w);
 void select_random_points(struct weights *w);
 
