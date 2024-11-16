@@ -632,7 +632,7 @@ double linf_disc(struct weights *w) {
         }
     }
     double ans;
-    if (d > 8) {
+    if (d >= 9) {
         long long i_tilde = 316; // floor(sqrt(10k))
         long long trials = i_tilde * i_tilde;
         ans = max(ta_delta(points, m, d, i_tilde, trials), ta_bardelta(points, m, d, i_tilde, trials));
