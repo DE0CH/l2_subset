@@ -66,7 +66,6 @@ void replace_points(struct weights *w, size_t dest, size_t src);
 void add_point(struct weights *w, size_t rc);
 void remove_point(struct weights *w, size_t src);
 void recalculate_weights(struct weights *w);
-void caclulate_init_weights(struct weights *w);
 struct weights *weights_alloc(size_t d, size_t n);
 void weights_free(struct weights *w);
 void process_points(struct weights *w);
