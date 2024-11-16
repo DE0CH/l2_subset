@@ -8,12 +8,8 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
-
-#define max(a,b) ((a)>(b)?(a):(b))
-#define min(a,b) ((a)<(b)?(a):(b))
-#define TRUE 1
-#define FALSE 0
-typedef unsigned char bool;
+#include "utils.h"
+#include <stdbool.h>
 
 // for stupid speedup reasons (alternative: make it static, and take care of initialization somehow)
 
@@ -582,7 +578,7 @@ void read_points(int argc, char *argv[], struct initial_params *param) {
   param->i_tilde = I_TILDE;
   param->trials = TRIALS;
   FILE *pointfile;
-  bool should_close_pointfile = TRUE;
+  bool should_close_pointfile = true;
   int pos = 1;
 
   FILE *random;
@@ -629,7 +625,7 @@ void read_points(int argc, char *argv[], struct initial_params *param) {
       exit(EXIT_FAILURE);
     }
     pointfile = stdin;
-    should_close_pointfile = FALSE;
+    should_close_pointfile = false;
     break;
 
   case 1: // one arg, interpret as file name
@@ -651,7 +647,7 @@ void read_points(int argc, char *argv[], struct initial_params *param) {
     param->dim = atoi(argv[pos++]);
     param->npoints = atoi(argv[pos]);
     pointfile = stdin;
-    should_close_pointfile = FALSE;
+    should_close_pointfile = false;
     break;
 
   case 3: // interpret as dim npoints file; file not allowed to have header
@@ -738,4 +734,191 @@ void free_grid(struct grid *gird) {
   free(gird->point_index);
   free(gird->n_coords);
   free(gird->coordinate);
+}
+
+double ta_bardelta(double **pointset, int n, int d, int i_tilde, int trials)
+{
+  struct grid grid_store;
+  struct grid *grid = &grid_store;
+  double thresh[i_tilde]; // Thresholdsequence
+
+  int xc_index[d], xn_minus_index[d], xn_extraminus_index[d];
+  int xn_best_index[d]; // Indices of current point, neighbour
+  double current, global[trials], best; // current and global best values
+  struct kmc kmc;
+  int _k[d];
+  kmc.k = _k;
+
+  // Sort the grid points, setup global variables
+  process_coord_data(grid, pointset, n, d);
+
+  // Algorithm starts here
+  for (int t = 0; t < trials; t++)
+  { // Initialization
+    // Initialize iteration count
+
+    // Generate threshold sequence
+    for (int i = 0; i < i_tilde; i++)
+    {
+      int current_iteration = i + 1;
+      // Update k-value
+      // Update mc-value
+      get_kmc(grid, &kmc, current_iteration, i_tilde);
+      // generation of random point xc
+      generate_xc_bardelta(grid, xn_minus_index, xn_extraminus_index);
+
+      //(Possibly) Snap the points and compute the largest of the rounded values
+      current = best_of_rounded_bardelta(grid, xn_minus_index, xn_extraminus_index, xc_index);
+
+      // draw a neighbour of xc
+      generate_neighbor_bardelta(grid, xn_minus_index, xn_extraminus_index, xc_index, kmc.k, kmc.mc);
+
+      // Compute the threshold
+      double fxc = best_of_rounded_bardelta(grid, xn_minus_index, xn_extraminus_index, xc_index);
+      thresh[i] = 0.0 - fabs(fxc - current);
+    }
+
+    // sort the thresholds in increasing order
+    quicksort(0, i_tilde, thresh);
+
+    current = 0;
+    global[t] = 0;
+    // draw a random initial point
+    generate_xc_bardelta(grid, xn_minus_index, xn_extraminus_index);
+
+    //(Possibly) Snap and compute the best of the rounded points and update current value
+    current = best_of_rounded_bardelta(grid, xn_minus_index, xn_extraminus_index, xc_index);
+
+    global[t] = current;
+
+    for (int i = 0; i < i_tilde; i++)
+    {
+      double T = thresh[i];
+
+      for (int p = 0; p < i_tilde; p++)
+      {
+        int current_iteration = i*i_tilde + p + 1;
+
+        // Update k-value
+        // Update mc-value
+        get_kmc(grid, &kmc, current_iteration, i_tilde * i_tilde);
+
+        // Get random neighbor
+        generate_neighbor_bardelta(grid, xn_minus_index, xn_extraminus_index, xc_index, kmc.k, kmc.mc);
+
+        //(Possibly) Snap the points and compute the best of the rounded points
+        double fxc = best_of_rounded_bardelta(grid, xn_minus_index, xn_extraminus_index, xn_best_index);
+        if (fxc > global[t])
+        {
+          global[t] = fxc;
+        }
+        ta_update_point(fxc, &current, T, xc_index, xn_best_index, d);
+      } // innerloop
+    } // outerloop
+  } // trials
+
+  // best calculated value
+  best = 0;
+  for (int t = 0; t < trials; t++)
+  {
+    if (global[t] > best)
+    {
+      best = global[t];
+    }
+  }
+  free_grid(&grid_store);
+  return best;
+}
+
+double ta_delta(double **pointset, int n, int d, int i_tilde, int trials)
+{
+  struct grid grid_store;
+  struct grid *grid = &grid_store;
+  double thresh[i_tilde]; // Thresholdsequence
+
+  int xc_index[d], xn_plus_index[d];
+  double current, global[trials], best; // current and global best values
+  struct kmc kmc;
+  int _k[d];
+  kmc.k = _k;
+
+  // Sort the grid points, setup global variables
+  process_coord_data(grid, pointset, n, d);
+
+  // Algorithm starts here
+  for (int t = 0; t < trials; t++)
+  { // Initialization
+    // Generate threshold sequence
+    for (int i = 0; i < i_tilde; i++)
+    {
+      int current_iteration = i + 1;
+      // Update k-value
+      get_kmc(grid, &kmc, current_iteration, i_tilde);
+
+      // generation of random point xc
+      generate_xc_delta(grid, xc_index);
+
+      //(Possibly) Snaps the point upwards and computes the fitness
+      current = best_of_rounded_delta(grid, xc_index);
+
+      // draw a neighbour of xc
+      generate_neighbor_delta(grid, xn_plus_index, xc_index, kmc.k, kmc.mc);
+
+      // Compute the threshold
+      double fxc = best_of_rounded_delta(grid, xn_plus_index);
+      thresh[i] = 0.0 - fabs(fxc - current);
+    }
+
+    // sort the thresholds in increasing order
+    quicksort(0, i_tilde, thresh);
+
+    current = 0;
+    global[t] = 0;
+    // draw a random initial point
+    generate_xc_delta(grid, xc_index);
+
+    //(Possibly) Snap and compute the best of the rounded points and update current value
+    current = best_of_rounded_delta(grid, xc_index);
+
+    global[t] = current;
+
+    for (int i = 0; i < i_tilde; i++)
+    {
+      double T = thresh[i];
+
+      for (int p = 0; p < i_tilde ; p++)
+      {
+        int current_iteration = i*i_tilde + p + 1;
+
+
+        // Update k-value
+        // Update mc-value
+        get_kmc(grid, &kmc, current_iteration, i_tilde * i_tilde);
+
+        // Get random neighbor
+        generate_neighbor_delta(grid, xn_plus_index, xc_index, kmc.k, kmc.mc);
+
+        //(Possibly) Snap the points and compute the best of the rounded points
+        double fxc = best_of_rounded_delta(grid, xn_plus_index);
+        // Global update if necessary
+        if (fxc > global[t])
+        {
+          global[t] = fxc;
+        }
+        ta_update_point(fxc, &current, T, xc_index, xn_plus_index, d);
+      } // innerloop
+    } // outerloop
+  } // trials
+
+  // best calculated value
+  best = 0;
+  for (int t = 0; t < trials; t++)
+  {
+    if (global[t] > best)
+    {
+      best = global[t];
+    }
+  }
+  free_grid(&grid_store);
+  return best;
 }

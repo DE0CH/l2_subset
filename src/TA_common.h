@@ -1,6 +1,3 @@
-#define max(a,b) ((a)>(b)?(a):(b))
-#define min(a,b) ((a)<(b)?(a):(b))
-
 struct grid {
 	int n_dimensions;
 	int n_points;
@@ -95,3 +92,7 @@ void get_kmc(struct grid *grid, struct kmc *kmc, int current_iteration, int tota
 void ta_update_point(double fxc, double *current, double T, int *xc_index, int *xn_best_index, int d);
 
 void free_grid(struct grid *grid);
+
+double ta_bardelta(double **pointset, int n, int d, int i_tilde, int trials);
+
+double ta_delta(double **pointset, int n, int d, int i_tilde, int trials);

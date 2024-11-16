@@ -5,17 +5,12 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include "utils.h"
 #include "l2_subset.h"
 #include "dem_disc.h"
 #include <time.h>
 #include "mt19937-64/mt64.h"
-
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define die(fmt, ...) do { \
-    fprintf(stderr, "Error: " fmt "\n", ##__VA_ARGS__); \
-    exit(EXIT_FAILURE); \
-} while (0)
+#include "TA_common.h"
 
 double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
@@ -654,7 +649,14 @@ double linf_disc(struct weights *w) {
             j++;
         }
     }
-    double ans = oydiscr(points, d, m);
+    double ans;
+    if (d > 8) {
+        long long i_tilde = 316; // floor(sqrt(10k))
+        long long trials = i_tilde * i_tilde;
+        ans = max(ta_delta(points, m, d, i_tilde, trials), ta_bardelta(points, m, d, i_tilde, trials));
+    } else {
+        ans = oydiscr(points, d, m);
+    }
     free(points);
     return ans;
 }
