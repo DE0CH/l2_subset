@@ -7,10 +7,8 @@
 #include <sys/mman.h>
 #include "utils.h"
 #include "l2_subset.h"
-#include "dem_disc.h"
 #include <time.h>
 #include "mt19937-64/mt64.h"
-#include "TA_common.h"
 
 double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
@@ -301,34 +299,6 @@ long long atoi_or_die(char *str) {
     return result;
 }
 
-double *read_points_from_file(char *filename, long long *d, long long *n) { // return the points, write d and n to the pointers supplied in the arugment
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        die("Could not open file: %s", filename);
-    }
-    if (fscanf(file, "%lld %lld %*f", d, n) != 2) {
-        die("Could not read dimensions. Hint: check if the file has the right format\n");
-    }
-
-    if (*d < 2) {
-        die("The dimension must be at least 2\n");
-    }
-
-    double *points = (double *)malloc(*n * *d * sizeof(double));
-
-    for (size_t i = 0; i < *n**d; i++) {
-        if(fscanf(file, "%lf", &points[i]) != 1) {
-            die("Could not read point. Hint: check if the file has the right number of points, and if the points are actually numbers\n");
-        }
-    }
-    double temp;
-    if (fscanf(file, "%lf", &temp) == 1) {
-        die("Too many points. Hint: check if you have given the right number of points at the top of the file\n");
-    }
-    fclose(file);
-    return points;
-}
-
 struct weights *read_point_file(struct input_data *data, int argc, char *argv[]) { // return the points
 
     if (argc != 5) {
@@ -610,35 +580,10 @@ void print_results(struct weights *w, struct analytics *a) {
 
     printf("Number of iterations: %lld\n", a->num_iterations);
     printf("Active point sum: %.10lf\n", total_discrepancy(w));
-    printf("linf discrepancy: %.10lf\n", linf_disc(w));
     fflush(stdout);
 }
 
 double total_discrepancy(struct weights *w) {
     double constant = pow((double)4.0/3.0, w->d);
     return constant + w->total_discrepancy;
-}
-
-double linf_disc(struct weights *w) {
-    long long n = w->n;
-    long long d = w->d;
-    long long m = w->m;
-    double **points = malloc(m * sizeof(double *));
-    size_t j = 0;
-    for (size_t i = 0; i < n; i++) {
-        if (w->points_category[i] == ACTIVE) {
-            points[j] = w->points + i * d;
-            j++;
-        }
-    }
-    double ans;
-    if (d >= 9) {
-        long long i_tilde = 316; // floor(sqrt(10k))
-        long long trials = i_tilde * i_tilde;
-        ans = max(ta_delta(points, m, d, i_tilde, trials), ta_bardelta(points, m, d, i_tilde, trials));
-    } else {
-        ans = oydiscr(points, d, m);
-    }
-    free(points);
-    return ans;
 }

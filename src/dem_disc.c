@@ -11,7 +11,6 @@
 #include <math.h>
 #include <string.h>
 #include <stdbool.h>
-#include "l2_subset.h"
 
 struct global
 {

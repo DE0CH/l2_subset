@@ -2,6 +2,7 @@
 #define L2_SUBSET_H
 
 #include <stdbool.h>
+#include "utils.h"
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define ACTIVE 1
@@ -34,12 +35,6 @@ struct weights {
     double total_discrepancy;
     bool *points_category;
     size_t *pp; // permuation of lengh n, used for shuffling
-};
-
-struct input_data {
-    long long n_trials;
-    long long seed;
-    char *output_filename;
 };
 
 struct analytics {
@@ -93,7 +88,6 @@ struct analytics *analytics_alloc(void);
 void analytics_free(struct analytics *a);
 struct analytics *main_loop(struct weights *w);
 void print_results(struct weights *w, struct analytics *a);
-double linf_disc(struct weights *w);
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]);
 size_t weight_serialized_file_size(struct serialize_header h);
@@ -101,7 +95,6 @@ int weights_serialize(struct weights *w, char *filename);
 struct weights *weights_deserialize(char *filename, void **mmapedData);
 struct weights *read_from_compiled_matrix(struct input_data *data, int argc, char *argv[], void **mmaped_data);
 struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *data, int argc, char *argv[], void **mmaped_data);
-double *read_points_from_file(char *filename, long long *d, long long *n);
 int free_mmaped_matrix(struct weights *w, void *mmaped_data);
 
 #endif // L2_SUBSET_H

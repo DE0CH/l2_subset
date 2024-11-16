@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "dem_disc.h"
-#include "l2_subset.h"
+#include "utils.h"
 
 int main(int argc, char **argv)
 {
