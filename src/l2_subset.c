@@ -176,21 +176,18 @@ void calculate_init_weights(struct weights *w) {
 }
 
 double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n) {
-    // n is the total number of points in the set and m is the number of points in the subset
-    // we only care about m
-    double alpha = 0.1;
     if (i == j) {
         double prod1 = 1.0;
         double prod2 = 1.0;
         for (size_t h = 0; h < d; h++) {
-            prod1 *= (1 - pow(X[i * d + h], alpha +  1)) / (alpha + 1);
-            prod2 *= (1 - pow(X[i * d + h], alpha +  2)) / (alpha + 2);
+            prod1 *= (3 - pow(X[i * d + h], 2));
+            prod2 *= (2 - X[i * d + h]);
         }
-        return - prod2 * 2 / m + prod1 / (m * m);
+        return - prod1 * pow(2, 1-d) / m + prod2 / (m * m);
     } else {
         double prod = 1.0;
         for (size_t h = 0; h < d; h++) {
-            prod *= (1 - pow(max(X[i * d + h], X[j * d + h]), alpha + 1)) / (alpha + 1);
+            prod *= min(2 - X[i * d + h], 2 - X[j * d + h]);
         }
         return prod / (m * m);
     }
