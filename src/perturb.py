@@ -19,10 +19,13 @@ def read_numbers_from_file(filename):
         return n, m, d
 
 parser = argparse.ArgumentParser()
-parser.add_argument('point_file', type=argparse.FileType('rb'), help='Point file')
+parser.add_argument('compiled_point_file', type=argparse.FileType('rb'), help='Compiled Point file. This is the output of l2_subset_compile_matrix')
+parser.add_argument('point_file', type=argparse.FileType('r'), help='Point file')
+parser.add_argument('scratch_file', type=argparse.FileType('w'), help='Scratch file. This will be used to store the subset of points that are selected for evaluating the linf discrepancy')
 parser.add_argument('seed', type=int, help='Seed for random number generator')
-parser.add_argument('p', type=int, help="number of points to pertube")
+parser.add_argument('p', type=int, help="number of points to perturb")
 parser.add_argument('iterations', type=int, help='Number of iterations')
+parser.add_argument('initial_population_size', type=int, help='Initial population size')
 args = parser.parse_args()
 
 random.seed(args.seed)
@@ -31,14 +34,38 @@ print(f"Running with local perturbation. Seed: {args.seed}, p: {args.p}, Iterati
 
 best_l2 = 1
 best_linf = 1
-n, m, d = read_numbers_from_file(args.point_file.name)
-points = random.sample(list(range(n)), m)
-best_points = points
+n, m, d = read_numbers_from_file(args.compiled_point_file.name)
+with open(args.point_file.name, 'r') as f:
+    points_lines = f.readlines()[1:]
+
+best_linf = 2 # the maximum is actually 1, but we set it to 2 to ensure that the first population is better
+for i in range(args.initial_population_size):
+    print("Calculating initial population", i + 1)
+    points = random.sample(list(range(n)), m)
+    with open(args.scratch_file.name, "w") as f:
+        f.write(f'{d} {m} 0.0\n')
+        for point in points:
+            f.write(f"{points_lines[point]}")
+    if d >= 9:
+        p = subprocess.run(["./ta_delta", args.scratch_file.name], capture_output=True)
+        delta = float(p.stdout.decode('utf-8').split('\n')[-1])
+        p = subprocess.run(["./ta_bardelta", args.scratch_file.name], capture_output=True)
+        bardelta = float(p.stdout.decode('utf-8').split('\n')[-1])
+        ans = max(delta, bardelta)
+    else:
+        p = subprocess.run(["./linf_disc", args.scratch_file.name], capture_output=True)
+        ans = float(p.stdout.decode('utf-8'))
+    if ans < best_linf:
+        best_linf = ans
+        best_points = points
+
+points = best_points
+print("initial best points:", *points)
 
 for i in range(args.iterations):
     lines = []
     print("Iteration", i + 1)
-    p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
+    p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.compiled_point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
     for line in p.stdout:
         line = line.decode('utf-8')
         print(line, end='')

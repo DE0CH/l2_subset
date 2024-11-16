@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         points[i] = points_store + i * d;
     }
     double discrepancy = oydiscr(points, d, n);
-    printf("Discrepancy: %lf\n", discrepancy);
+    printf("%.10lf\n", discrepancy);
     free(points);
     free(points_store);
 }
