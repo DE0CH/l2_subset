@@ -3,12 +3,28 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <signal.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include "utils.h"
 #include "l2_subset.h"
 #include <time.h>
 #include "mt19937-64/mt64.h"
+
+#define _XOPEN_SOURCE 700
+
+volatile sig_atomic_t run = true;
+
+void signal_handler(int sig) {
+    if (!run) {
+        signal(sig, SIG_DFL);
+        raise(sig);
+    } else {
+        fprintf(stderr, "Caught SIGINT, setting run to false. Going to print out the best points so far.\nSend the SIGINT again (e.g. ctrl-C) to force quit the program.\n");
+        run = false;
+    }
+}
 
 double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
@@ -550,6 +566,16 @@ void initialise_permuation(struct weights *w) {
 }
 
 struct analytics *main_loop(struct weights *w) {
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("Error setting SIGINT handler");
+        exit(EXIT_FAILURE);
+    }
+
     struct analytics *a = analytics_alloc();
     initialise_permuation(w);
     shuffle(w);
@@ -557,7 +583,7 @@ struct analytics *main_loop(struct weights *w) {
     if (w->n == w->m) {
         return a;
     }
-    while (true) {
+    while (run) {
         printf("l2   %.10lf\n", total_discrepancy(w));
         struct pair p = most_significant_pair(w);
         if (p.i == SIZE_MAX) {
@@ -565,6 +591,11 @@ struct analytics *main_loop(struct weights *w) {
         }
         replace_points(w, p.i, p.j);
         a->num_iterations++;
+    }
+    if (!run) {
+        printf("Interrupted\n");
+        print_results(w, a);
+        raise(SIGINT);
     }
     return a;
 }

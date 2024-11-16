@@ -69,21 +69,26 @@ print("initial best points:", *points)
 for i in range(args.iterations):
     lines = []
     print("Iteration", i + 1)
-    p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.compiled_point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
-    for line in p.stdout:
-        line = line.decode('utf-8')
-        print(line, end='')
-        matches = re.match(r"Active points: ([\d\s]+)", line)
-        if matches:
-            new_points = list(map(int, matches.group(1).split()))
-        matches = re.match(r"Active point sum: -?([\d\.]+)", line)
-        if matches:
-            new_l2 = float(matches.group(1))
-        lines.append(line)
-    p.wait()
-    # check return code
-    if p.returncode != 0:
-        raise subprocess.CalledProcessError(p.returncode, p.args)
+    try:
+        p = subprocess.Popen(["./l2_subset_from_compiled_matrix_w_starting_point", args.compiled_point_file.name, str(random.randrange(0, 2**61-1)), *map(str, points)], stdout=subprocess.PIPE)
+        for line in p.stdout:
+            line = line.decode('utf-8')
+            print(line, end='')
+            matches = re.match(r"Active points: ([\d\s]+)", line)
+            if matches:
+                new_points = list(map(int, matches.group(1).split()))
+            matches = re.match(r"Active point sum: -?([\d\.]+)", line)
+            if matches:
+                new_l2 = float(matches.group(1))
+            lines.append(line)
+    except KeyboardInterrupt:
+        for line in p.stdout:
+            print(line.decode('utf-8'), end='')
+        raise
+    finally:
+        p.wait()
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, p.args)
     new_linf = calculate_linf(new_points)
     print("linf discrepancy:", new_linf)
     print("perturbing for next iteration")

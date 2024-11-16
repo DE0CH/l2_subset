@@ -34,7 +34,14 @@ try:
     print(f"Compiling matrix")
     subprocess.run(['./l2_subset_compile_matrix', join(temp_dir, 'points.txt'), str(args.m), join(temp_dir, 'points.p')], check=True)
     for i in range(args.num_global_restart):
-        subprocess.run([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), join(temp_dir, 'points.txt'), join(temp_dir, 'scratch.txt'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)], check=True)
+        try:
+            p = subprocess.Popen([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), join(temp_dir, 'points.txt'), join(temp_dir, 'scratch.txt'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)])
+            p.wait()
+
+        finally:
+            p.wait()
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(p.returncode, p.args)
 finally:
     print("cleaning up temporary directory")
     shutil.rmtree(temp_dir)
