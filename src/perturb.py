@@ -48,9 +48,9 @@ for i in range(args.initial_population_size):
             f.write(f"{points_lines[point]}")
     if d >= 9:
         p = subprocess.run(["./ta_delta", args.scratch_file.name], capture_output=True)
-        delta = float(p.stdout.decode('utf-8').split('\n')[-1])
+        delta = float(p.stdout.decode('utf-8').split('\n')[-2])
         p = subprocess.run(["./ta_bardelta", args.scratch_file.name], capture_output=True)
-        bardelta = float(p.stdout.decode('utf-8').split('\n')[-1])
+        bardelta = float(p.stdout.decode('utf-8').split('\n')[-2])
         ans = max(delta, bardelta)
     else:
         p = subprocess.run(["./linf_disc", args.scratch_file.name], capture_output=True)
