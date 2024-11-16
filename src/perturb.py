@@ -38,10 +38,7 @@ n, m, d = read_numbers_from_file(args.compiled_point_file.name)
 with open(args.point_file.name, 'r') as f:
     points_lines = f.readlines()[1:]
 
-best_linf = 2 # the maximum is actually 1, but we set it to 2 to ensure that the first population is better
-for i in range(args.initial_population_size):
-    print("Calculating initial population", i + 1)
-    points = random.sample(list(range(n)), m)
+def calculate_linf(points):
     with open(args.scratch_file.name, "w") as f:
         f.write(f'{d} {m} 0.0\n')
         for point in points:
@@ -55,6 +52,13 @@ for i in range(args.initial_population_size):
     else:
         p = subprocess.run(["./linf_disc", args.scratch_file.name], capture_output=True)
         ans = float(p.stdout.decode('utf-8'))
+    return ans
+
+best_linf = 2 # the maximum is actually 1, but we set it to 2 to ensure that the first population is better
+for i in range(args.initial_population_size):
+    print("Calculating initial population", i + 1)
+    points = random.sample(list(range(n)), m)
+    ans = calculate_linf(points)
     if ans < best_linf:
         best_linf = ans
         best_points = points
@@ -75,15 +79,13 @@ for i in range(args.iterations):
         matches = re.match(r"Active point sum: -?([\d\.]+)", line)
         if matches:
             new_l2 = float(matches.group(1))
-        matches = re.match(r"linf discrepancy: -?([\d\.]+)", line)
-        if matches:
-            new_linf = float(matches.group(1))
         lines.append(line)
     p.wait()
     # check return code
     if p.returncode != 0:
         raise subprocess.CalledProcessError(p.returncode, p.args)
-
+    new_linf = calculate_linf(new_points)
+    print("linf discrepancy:", new_linf)
     print("perturbing for next iteration")
     if new_linf < best_linf:
         best_l2 = new_l2
