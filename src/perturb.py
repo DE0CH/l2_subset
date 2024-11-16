@@ -45,10 +45,10 @@ for i in range(args.iterations):
         matches = re.match(r"Active points: ([\d\s]+)", line)
         if matches:
             new_points = list(map(int, matches.group(1).split()))
-        matches = re.match(r"Active point sum: ([\d\.]+)", line)
+        matches = re.match(r"Active point sum: -?([\d\.]+)", line)
         if matches:
             new_l2 = float(matches.group(1))
-        matches = re.match(r"linf discrepancy: ([\d\.]+)", line)
+        matches = re.match(r"linf discrepancy: -?([\d\.]+)", line)
         if matches:
             new_linf = float(matches.group(1))
         lines.append(line)
