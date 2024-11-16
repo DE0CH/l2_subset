@@ -16,7 +16,7 @@ double get_weight(struct weights *w, size_t i, size_t j) {
 #if COMPUTE_MODE == USE_MATRIX
     return w->entries[i * w->n + j];
 #elif COMPUTE_MODE == USE_POINTS
-    return w_ij(w->points, i, j, w->d, w->m, w->n, w->alpha);
+    return w_ij(w->points, i, j, w->d, w->m, w->n);
 #else
     #error "Invalid COMPUTE_MODE"
 #endif
@@ -175,9 +175,10 @@ void calculate_init_weights(struct weights *w) {
     }
 }
 
-double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n, double alpha) {
+double w_ij(double* X, size_t i, size_t j, long long d, long long m, long long n) {
     // n is the total number of points in the set and m is the number of points in the subset
     // we only care about m
+    double alpha = 0.1;
     if (i == j) {
         double prod1 = 1.0;
         double prod2 = 1.0;
@@ -239,7 +240,7 @@ void process_points(struct weights *w) {
 #if COMPUTE_MODE == USE_MATRIX
     for (size_t i = 0; i < w->n; ++i) {
         for (size_t j = 0; j < w->n; ++j) {
-            w->entries[i * w->n + j] = w_ij(w->points, i, j, w->d, w->m, w->n, w->alpha);
+            w->entries[i * w->n + j] = w_ij(w->points, i, j, w->d, w->m, w->n);
         }
     }
 #elif COMPUTE_MODE == USE_POINTS
@@ -303,15 +304,6 @@ long long atoi_or_die(char *str) {
     return result;
 }
 
-double atof_or_die(char *str) {
-    char *endptr;
-    double result = strtod(str, &endptr);
-    if (*str == '\0' || *endptr != '\0') {
-        die("Invalid decimal number: \"%s\"", str);
-    }
-    return result;
-}
-
 double *read_points_from_file(char *filename, long long *d, long long *n) { // return the points, write d and n to the pointers supplied in the arugment
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -342,13 +334,12 @@ double *read_points_from_file(char *filename, long long *d, long long *n) { // r
 
 struct weights *read_point_file(struct input_data *data, int argc, char *argv[]) { // return the points
 
-    if (argc != 6) {
-        die("Usage: %s <points_file> <m> <alpha> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
+    if (argc != 5) {
+        die("Usage: %s <points_file> <m> <seed> <n_trials>. Selecte m low discrepancy points.", argv[0]);
     }
     long long m = atoi_or_die(argv[2]);
-    double alpha = atof_or_die(argv[3]);
-    long long seed = atoi_or_die(argv[4]);
-    long long n_trials = atoi_or_die(argv[5]);
+    long long seed = atoi_or_die(argv[3]);
+    long long n_trials = atoi_or_die(argv[4]);
 
     data->n_trials = n_trials;
     data->seed = seed;
@@ -361,7 +352,6 @@ struct weights *read_point_file(struct input_data *data, int argc, char *argv[])
     w->m = m;
     w->n = n;
     w->d = d;
-    w->alpha = alpha;
     process_points(w);
     process_points(w);
 
@@ -410,21 +400,19 @@ struct weights *read_from_compiled_matrix_w_starting_point(struct input_data *da
 }
 
 struct weights *read_point_file_and_save(struct input_data *data, int argc, char *argv[]) {
-    if (argc != 5) {
-        die("Usage: %s <points_file> <m> <alpha> <output_file>. Precompute the matrix and save to output file.", argv[0]);
+    if (argc != 4) {
+        die("Usage: %s <points_file> <m> <output_file>. Precompute the matrix and save to output file.", argv[0]);
     }
     long long m = atoi_or_die(argv[2]);
-    double alpha = atof_or_die(argv[3]);
     long long d, n;
     double *points = read_points_from_file(argv[1], &d, &n);
-    data->output_filename = argv[4];
+    data->output_filename = argv[3];
     struct weights *w = weights_alloc(d, n);
     free(w->points);
     w->points = points;
     w->m = m;
     w->n = n;
     w->d = d;
-    w->alpha = alpha;
     process_points(w);
     return w;
 }
@@ -444,7 +432,6 @@ int weights_serialize(struct weights *w, char *filename) {
     h.n = w->n;
     h.m = w->m;
     h.d = w->d;
-    h.alpha = w->alpha;
 
     written += fwrite(&h, sizeof(struct serialize_header), 1, file);
     total += 1;
@@ -497,7 +484,6 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
     long long n = h.n;
     long long m = h.m;
     long long d = h.d;
-    double alpha = h.alpha;
     size_t padding_length = round_up(sizeof(struct serialize_header), sizeof(double)) - sizeof(struct serialize_header);
     fseek(file, padding_length, SEEK_CUR);
     struct weights *w = weights_alloc(d, n);
@@ -511,7 +497,6 @@ struct weights *weights_deserialize(char *filename, void **mmapedData) {
     w->m = m;
     w->d = d;
     w->n = n;
-    w->alpha = alpha;
     size_t filesize = weight_serialized_file_size(h);
 
     *mmapedData = mmap(NULL, filesize, PROT_READ, MAP_PRIVATE, fileno(file), 0);
@@ -540,7 +525,6 @@ int free_mmaped_matrix(struct weights *w, void *mmaped_data) {
     h.n = w->n;
     h.m = w->m;
     h.d = w->d;
-    h.alpha = w->alpha;
     size_t filesize = weight_serialized_file_size(h);
     if (munmap(mmaped_data, filesize) == -1) {
         return 1;
