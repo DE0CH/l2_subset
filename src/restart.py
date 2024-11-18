@@ -58,6 +58,7 @@ try:
             if p.returncode != 0:
                 raise subprocess.CalledProcessError(p.returncode, p.args)
 finally:
-    stop_event.set()
+    if args.timeout:
+        stop_event.set()
     print("cleaning up temporary directory")
     shutil.rmtree(temp_dir)
