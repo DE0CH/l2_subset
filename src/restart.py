@@ -2,10 +2,19 @@ import argparse
 import subprocess
 import tempfile
 from os.path import join
-from os import rmdir, mkdir
+from os import mkdir
+import os
 import random
 import sys
 import shutil
+import signal
+import time
+import threading
+
+def send_sigint_to_process_group_after_delay(delay, event):
+    if not event.wait(delay):
+        print("Timeout reached")
+        os.killpg(os.getpgid(os.getpid()), signal.SIGINT)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n', type=int, help='n')
@@ -17,6 +26,7 @@ parser.add_argument('num_global_restart', type=int, help='Number of global resta
 parser.add_argument('initial_population_size', type=int, help='Number of initial population for each global restart')
 
 parser.add_argument('seed', type=int, help='Seed for random number generator')
+parser.add_argument('--timeout', type=int, help='Timeout for the entire process')
 args = parser.parse_args()
 
 random.seed(args.seed)
@@ -27,6 +37,11 @@ print(f'Running a new restart with seed {args.seed}, n = {args.n}, m = {args.m},
 temp_dir = tempfile.TemporaryDirectory()
 temp_dir = temp_dir.name
 mkdir(temp_dir)
+
+if args.timeout:
+    stop_event = threading.Event()
+    timer_thread = threading.Thread(target=send_sigint_to_process_group_after_delay, args=(args.timeout, stop_event))
+    timer_thread.start()
 
 try:
     print(f"generating point file with {args.n} points")
@@ -43,5 +58,6 @@ try:
             if p.returncode != 0:
                 raise subprocess.CalledProcessError(p.returncode, p.args)
 finally:
+    stop_event.set()
     print("cleaning up temporary directory")
     shutil.rmtree(temp_dir)
