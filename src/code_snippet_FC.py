@@ -1,15 +1,19 @@
+import torch
+alpha = 0.01
+beta = - 0.05
+
 def mixture_of_gaussians(X):
     """
     Compute the log-density and gradient of the log-density for a mixture of two bivariate Gaussians.
     """
     # Define means and covariances for the two Gaussians
-    mean1 = torch.tensor([-1.5, 0.0], device=device)
-    cov1 = torch.tensor([[1.0, 0.0], [0.0, 1.0]], device=device)
+    mean1 = torch.tensor([-1.5, 0.0])
+    cov1 = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
     cov_inv1 = torch.inverse(cov1)
     det_cov1 = torch.det(cov1)
     
-    mean2 = torch.tensor([1.5, 0.0], device=device)
-    cov2 = torch.tensor([[1.0, 0.0], [0.0, 1.0]], device=device)
+    mean2 = torch.tensor([1.5, 0.0])
+    cov2 = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
     cov_inv2 = torch.inverse(cov2)
     det_cov2 = torch.det(cov2)
     
@@ -69,6 +73,3 @@ def KSD_loss(self, X):
     ksd = stein_kernel.mean(dim=(1, 2))
              
     return ksd     
-    
-   
-#parameters alpha = 0.01, beta = - 0.05
