@@ -87,7 +87,7 @@ X = torch.randn(nbatch, nsamples, dim, generator=gen)
 v = KSD_loss(X, nbatch, nsamples, dim)
 
 print(v)
-w = v[0].detach().cpu().numpy().astype(np.float64)
+w = v[0].numpy().astype(np.float64)
 print(w)
 
 #save_matrix_to_binary(filename, M, n, m, d) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
