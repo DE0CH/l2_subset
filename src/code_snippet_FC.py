@@ -1,6 +1,9 @@
 import torch
-alpha = 0.01
-beta = - 0.05
+import struct
+import numpy as np
+
+gen = torch.Generator()
+gen.manual_seed(42)
 
 def mixture_of_gaussians(X):
     """
@@ -42,16 +45,16 @@ def mixture_of_gaussians(X):
 
 
 # KSD loss to be used within MPMC torch environment
-def KSD_loss(self, X):
-
-    X = X.view(self.nbatch, self.nsamples, self.dim)
-    log_p, grad_log_p = self.target_dist(X)
+def KSD_loss(X, nbatch, nsamples, dim):
+    X = X.view(nbatch, nsamples, dim)
+    log_p, grad_log_p = mixture_of_gaussians(X)
 
     # Apply temperature scaling to the gradients to emphasize high-density areas
     T = 0.5  # Experiment with values like 0.1 or 0.05
     grad_log_p /= T
-    
-    #IMQ kernel with alpha, beta parameters
+
+    alpha = 0.01
+    beta = -0.05
     X_expanded = X.unsqueeze(2)
     X_diff = X_expanded - X_expanded.transpose(1, 2)
     norm_sq = torch.sum(X_diff ** 2, dim=-1)
@@ -59,10 +62,10 @@ def KSD_loss(self, X):
 
     # Compute gradients of the kernel with respect to x and x'
     grad_K = -2 * beta * X_diff * K.unsqueeze(-1) / (alpha + norm_sq).unsqueeze(-1)
-    
+
     # Hessian trace term (for divergence)
-    hessian_trace = -2 * beta * (self.dim * (alpha + norm_sq) ** (beta - 1) - 
-    2 * beta * norm_sq * (alpha + norm_sq) ** (beta -2))
+    hessian_trace = -2 * beta * (dim * (alpha + norm_sq) ** (beta - 1) - 
+                                 2 * beta * norm_sq * (alpha + norm_sq) ** (beta - 2))
 
     grad_log_p_expanded = grad_log_p.unsqueeze(2)
     dot_grad_log_p = torch.einsum('bikd,bjkd->bij', grad_log_p_expanded, grad_log_p_expanded)
@@ -70,6 +73,48 @@ def KSD_loss(self, X):
     dot_grad_K_y = torch.einsum('bjkd,bijd->bij', grad_log_p_expanded, grad_K)
 
     stein_kernel = K * dot_grad_log_p + dot_grad_K_x + dot_grad_K_y + hessian_trace
-    ksd = stein_kernel.mean(dim=(1, 2))
              
-    return ksd     
+    return stein_kernel
+
+def round_up(location, alignment):
+    return (location + alignment - 1) & ~(alignment - 1)
+
+def save_matrix_to_binary(filename, X, n, m, d):
+    
+    if m > n:
+        raise ValueError("m cannot be greater than n.")
+    
+    # Use the first batch of X
+
+    header_format = "qqq"  # Format for long long (n, m, d)
+    alignment = 8  # Assume double alignment (sizeof(double) = 8 bytes)
+    
+    # Serialize the header
+    header_size = struct.calcsize(header_format)
+    aligned_header_size = round_up(header_size, alignment)
+    padding_length = aligned_header_size - header_size
+    header = struct.pack(header_format, n, m, d) + b'\x00' * padding_length
+    Y = np.array([0.0]*(n*d)).astype(np.float64)
+    # Write to file
+    with open(filename, "wb") as f:
+        f.write(header)
+        Y.tofile(f)
+        X.tofile(f)
+
+# Example dimensions
+nbatch = 1  # Number of batches
+nsamples = 3  # Number of samples per batch
+dim = 2  # Dimensionality of each sample
+
+
+X = torch.randn(nbatch, nsamples, dim, generator=gen)
+
+v = KSD_loss(X, nbatch, nsamples, dim)
+
+print(v)
+w = v[0].detach().cpu().numpy().astype(np.float64)
+print(w)
+
+save_matrix_to_binary('t.bin', w, nsamples, 2, 2)
+
+
