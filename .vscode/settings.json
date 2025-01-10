@@ -3,6 +3,8 @@
         "type_traits": "c",
         "stdio.h": "c",
         "string.h": "c",
-        "cstdlib": "cpp"
+        "cstdlib": "cpp",
+        "l2_subset.h": "c",
+        "mt64.h": "c"
     }
 }
