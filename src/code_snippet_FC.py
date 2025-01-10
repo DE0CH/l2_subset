@@ -1,5 +1,4 @@
 import torch
-
 import numpy as np
 from util import round_up, save_matrix_to_binary
 
