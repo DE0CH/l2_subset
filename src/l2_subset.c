@@ -123,7 +123,7 @@ void add_point(struct weights *w, size_t src) {
     w->total_discrepancy += w->point_weights[j];
     double old_weight = w->point_weights[j];
     for (size_t i = 0; i < w->n; ++i) {
-        double change = 2*get_weight(w, i, j);
+        double change = get_weight(w, i, j) + get_weight(w, j, i);
         w->point_weights[i] += change;
     }
     w->points_category[j] = ACTIVE;
@@ -140,7 +140,7 @@ void remove_point(struct weights *w, size_t src) {
     w->total_discrepancy -= w->point_weights[j];
     double old_weight = w->point_weights[j];
     for (size_t i = 0; i < w->n; i++) {
-        double change = 2*get_weight(w, i, j);
+        double change = get_weight(w, i, j) + get_weight(w, j, i);
         w->point_weights[i] -= change;
     }
     w->point_weights[j] = old_weight;
@@ -293,7 +293,7 @@ size_t largest_active_point(struct weights *w) {
 }
 
 double relative_inactive_weight(struct weights *w, size_t inactive_point, size_t active_point) {
-    return w->point_weights[inactive_point] - 2*get_weight(w, inactive_point, active_point);
+    return w->point_weights[inactive_point] - get_weight(w, inactive_point, active_point) - get_weight(w, active_point, inactive_point);
 }
 
 size_t smallest_inactive_point(struct weights *w, size_t largest_active_point) {
