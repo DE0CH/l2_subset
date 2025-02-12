@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from util import round_up, save_matrix_to_binary
+from util import save_matrix_to_binary
 
 gen = torch.Generator()
 gen.manual_seed(42)
@@ -78,19 +78,20 @@ def KSD_loss(X, nbatch, nsamples, dim):
 
 
 nbatch = 1  # Number of batches
-nsamples = 3  # Number of samples per batch
+nsamples = 200  # Number of samples per batch
 dim = 2  # Dimensionality of each sample
+m = 100 # m as pass into L2
 
 
 X = torch.randn(nbatch, nsamples, dim, generator=gen)
 
 v = KSD_loss(X, nbatch, nsamples, dim)
 
-print(v)
 w = v[0].numpy().astype(np.float64)
 print(w)
+print(sum(sum(w)))
 
 #save_matrix_to_binary(filename, M, n, m, d) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
-save_matrix_to_binary('t.bin', w, nsamples, 2, 2)
+save_matrix_to_binary('t.bin', w, nsamples, m)
 
 

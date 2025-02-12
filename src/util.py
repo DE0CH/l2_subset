@@ -4,7 +4,7 @@ import numpy as np
 def round_up(location, alignment):
     return (location + alignment - 1) & ~(alignment - 1)
 
-def save_matrix_to_binary(filename, X, n, m, d):
+def save_matrix_to_binary(filename, X, n, m):
     
     if m > n:
         raise ValueError("m cannot be greater than n.")
@@ -18,10 +18,9 @@ def save_matrix_to_binary(filename, X, n, m, d):
     header_size = struct.calcsize(header_format)
     aligned_header_size = round_up(header_size, alignment)
     padding_length = aligned_header_size - header_size
-    header = struct.pack(header_format, n, m, d) + b'\x00' * padding_length
-    Y = np.array([0.0]*(n*d)).astype(np.float64)
+    header = struct.pack(header_format, n, m, 0) + b'\x00' * padding_length # d is 0 because we don't really care about
     # Write to file
     with open(filename, "wb") as f:
         f.write(header)
-        Y.tofile(f)
+        # we don't write the points array because it's a 0 length array as d = 0
         X.tofile(f)
