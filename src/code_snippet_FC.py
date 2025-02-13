@@ -91,7 +91,7 @@ w = v[0].numpy().astype(np.float64)
 print(w)
 print(sum(sum(w)))
 
-#save_matrix_to_binary(filename, M, n, m, d) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
+#save_matrix_to_binary(filename, M, n, m) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
 save_matrix_to_binary('t.bin', w, nsamples, m)
 
 
