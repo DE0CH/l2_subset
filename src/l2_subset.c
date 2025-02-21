@@ -615,6 +615,5 @@ void print_results(struct weights *w, struct analytics *a) {
 }
 
 double total_discrepancy(struct weights *w) {
-    double constant = pow((double)4.0/3.0, w->d);
-    return constant + w->total_discrepancy;
+    return w->total_discrepancy;
 }
