@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import torch
 import numpy as np
-from util import save_matrix_to_binary
+from utils import save_matrix_to_binary
 import argparse
 import math
 
