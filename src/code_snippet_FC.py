@@ -1,97 +1,120 @@
+#!/usr/bin/env python3
 import torch
 import numpy as np
 from util import save_matrix_to_binary
-
-gen = torch.Generator()
-gen.manual_seed(42)
+import argparse
+import math
 
 def mixture_of_gaussians(X):
-    """
-    Compute the log-density and gradient of the log-density for a mixture of two bivariate Gaussians.
-    """
-    # Define means and covariances for the two Gaussians
-    mean1 = torch.tensor([-1.5, 0.0])
-    cov1 = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
-    cov_inv1 = torch.inverse(cov1)
-    det_cov1 = torch.det(cov1)
-    
-    mean2 = torch.tensor([1.5, 0.0])
-    cov2 = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
-    cov_inv2 = torch.inverse(cov2)
-    det_cov2 = torch.det(cov2)
-    
-    # Compute the difference from the means
-    diff1 = X - mean1  # Shape: [nbatch, nsamples, 2]
-    diff2 = X - mean2  # Shape: [nbatch, nsamples, 2]
+    is_batched = (X.dim() == 3)    # Check if input is batched
 
-    # Compute the log densities of each Gaussian (up to a constant)
-    log_p1 = -0.5 * torch.einsum('bni,ij,bnj->bn', diff1, cov_inv1, diff1) - 0.5 * torch.log(det_cov1)
-    log_p2 = -0.5 * torch.einsum('bni,ij,bnj->bn', diff2, cov_inv2, diff2) - 0.5 * torch.log(det_cov2)
-    
-    # Compute the gradient of the log-densities
-    grad_log_p1 = -torch.einsum('ij,bnj->bni', cov_inv1, diff1)
-    grad_log_p2 = -torch.einsum('ij,bnj->bni', cov_inv2, diff2)
+    # Define Gaussian mixture components
+    means = torch.tensor([[-1.5, 0.0], [1.5, 0.0]])    
+    covs = torch.stack([torch.eye(2), torch.eye(2)])
+    weights = torch.tensor([0.5, 0.5])    
 
-    # Use hard assignment based on which Gaussian is more likely
-    # Create a mask for which component dominates each point
-    mask1 = log_p1 > log_p2
-    mask2 = ~mask1
+    if is_batched:
+            means = means.unsqueeze(0)    
+            X_exp = X.unsqueeze(2) 
+    else:
+            X_exp = X.unsqueeze(1) 
 
-    # Combine the log densities using the mask
-    log_p_mixture = torch.where(mask1, log_p1, log_p2)
-    grad_log_p_mixture = torch.where(mask1.unsqueeze(-1), grad_log_p1, grad_log_p2)
-    
-    return log_p_mixture, grad_log_p_mixture
+    # Compute differences
+    diff = X_exp - means    
 
+    det_covs = torch.det(covs) 
+    inv_covs = torch.inverse(covs)    
 
-# KSD loss to be used within MPMC torch environment
-def KSD_loss(X, nbatch, nsamples, dim):
+    mahalanobis = torch.einsum('...mi,mij,...mj->...m', diff, inv_covs, diff)    
+
+    log_coeff = torch.log(weights) - 0.5 * (2 * torch.log(torch.tensor(2 * math.pi)) + torch.log(det_covs))
+    log_exponent = -0.5 * mahalanobis    
+    log_p_comp = log_coeff + log_exponent    
+
+    max_log_p = torch.max(log_p_comp, dim=-1, keepdim=True)[0]    
+    log_p = max_log_p.squeeze(-1) + torch.log(torch.sum(torch.exp(log_p_comp - max_log_p), dim=-1))    
+
+    # Compute gradient of log density
+    weighted_gradients = weights * torch.exp(log_p_comp - log_p.unsqueeze(-1))    
+    grad_log_p = -torch.einsum('...m,...mi,mij->...i', weighted_gradients, diff, inv_covs) 
+
+    return log_p, grad_log_p
+
+def KSD_loss_RBF(X, nbatch, nsamples, dim):
     X = X.view(nbatch, nsamples, dim)
+
     log_p, grad_log_p = mixture_of_gaussians(X)
 
-    # Apply temperature scaling to the gradients to emphasize high-density areas
-    T = 0.5  # Experiment with values like 0.1 or 0.05
-    grad_log_p /= T
+    # Compute pairwise squared Euclidean distances
+    X_expanded = X.unsqueeze(2)    
+    X_diff = X_expanded - X_expanded.transpose(1, 2)    
+    norm_sq = torch.sum(X_diff ** 2, dim=-1)    
 
-    alpha = 0.01
-    beta = -0.05
-    X_expanded = X.unsqueeze(2)
-    X_diff = X_expanded - X_expanded.transpose(1, 2)
-    norm_sq = torch.sum(X_diff ** 2, dim=-1)
-    K = (alpha + norm_sq) ** beta 
+    # Median heuristic for bandwidth selection
+    median_dist = torch.median(norm_sq[norm_sq > 0])    
+    h = torch.sqrt(0.5 * median_dist / torch.log(torch.tensor(nsamples + 1.0)))
 
-    # Compute gradients of the kernel with respect to x and x'
-    grad_K = -2 * beta * X_diff * K.unsqueeze(-1) / (alpha + norm_sq).unsqueeze(-1)
+    # RBF kernel computation
+    K = torch.exp(-norm_sq / (2 * h**2))
 
-    # Hessian trace term (for divergence)
-    hessian_trace = -2 * beta * (dim * (alpha + norm_sq) ** (beta - 1) - 
-                                 2 * beta * norm_sq * (alpha + norm_sq) ** (beta - 2))
+    # Compute the gradient of the kernel
+    grad_K = -K.unsqueeze(-1) * X_diff / (h**2)    
 
-    grad_log_p_expanded = grad_log_p.unsqueeze(2)
+    # Compute Hessian trace
+    hessian_trace = K * (dim / (h**2) - norm_sq / (h**4))    
+
+    # Compute KSD components
+    grad_log_p_expanded = grad_log_p.unsqueeze(2)    
     dot_grad_log_p = torch.einsum('bikd,bjkd->bij', grad_log_p_expanded, grad_log_p_expanded)
     dot_grad_K_x = torch.einsum('bikd,bijd->bij', grad_log_p_expanded, grad_K)
     dot_grad_K_y = torch.einsum('bjkd,bijd->bij', grad_log_p_expanded, grad_K)
 
+    # Compute final Stein kernel
     stein_kernel = K * dot_grad_log_p + dot_grad_K_x + dot_grad_K_y + hessian_trace
-             
+
     return stein_kernel
 
 
+def sample_from_mixture(n_samples, dim):
+    """Generates samples from the target Gaussian mixture model."""
+    means = torch.tensor([[-1.5, 0.0], [1.5, 0.0]])    # (nMix, nDim)
+    covs = torch.stack([torch.eye(2), torch.eye(2)])    # (nMix, nDim, nDim)
+    weights = torch.tensor([0.5, 0.5])    # (nMix,)
+
+    component_indices = torch.multinomial(weights, num_samples=n_samples, replacement=True)
+
+    sampled_points = torch.empty((n_samples, dim))
+    for i, comp in enumerate(component_indices):
+            sampled_points[i] = torch.distributions.MultivariateNormal(means[comp], covs[comp]).sample()
+
+    return sampled_points
+
 nbatch = 1  # Number of batches
-nsamples = 200  # Number of samples per batch
-dim = 2  # Dimensionality of each sample
-m = 100 # m as pass into L2
 
 
-X = torch.randn(nbatch, nsamples, dim, generator=gen)
+parser = argparse.ArgumentParser()
+parser.add_argument('nsamples', type=int)
+parser.add_argument('dim', type=int)
+parser.add_argument('m', type=int)
+parser.add_argument('points_file', type=str)
+parser.add_argument('--seed', type=int, default=42)
 
-v = KSD_loss(X, nbatch, nsamples, dim)
+args = parser.parse_args()
+
+nsamples = args.nsamples # Number of samples per batch
+dim = args.dim # Dimensionality of each sample
+m = args.m # m as pass into L2
+
+torch.manual_seed(args.seed)
+
+
+X = sample_from_mixture(nsamples, dim)
+
+v = KSD_loss_RBF(X, nbatch, nsamples, dim)
 
 w = v[0].numpy().astype(np.float64)
-print(w)
-print(sum(sum(w)))
 
 #save_matrix_to_binary(filename, M, n, m) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
-save_matrix_to_binary('t.bin', w, nsamples, m)
+save_matrix_to_binary(args.points_file, w, nsamples, m)
 
 
