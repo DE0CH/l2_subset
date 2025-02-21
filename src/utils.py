@@ -25,7 +25,8 @@ def save_matrix_to_binary(filename, X, n, m):
         # we don't write the points array because it's a 0 length array as d = 0
         X.tofile(f)
 
-def read_matrix_from_binary(file):
+def read_matrix_from_binary(filename):
+    file = open(filename, "rb")
         
     header_format = "qqq"  # Format for long long (n, m, d)
     alignment = 8  # Assume double alignment (sizeof(double) = 8 bytes)
@@ -54,6 +55,7 @@ def read_matrix_from_binary(file):
 
     # Read the matrix data
     matrix_data = file.read(matrix_size)
+    file.close()
     
     if len(matrix_data) < matrix_size:
         raise ValueError("File does not contain enough data for the matrix.")
