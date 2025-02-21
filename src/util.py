@@ -24,3 +24,41 @@ def save_matrix_to_binary(filename, X, n, m):
         f.write(header)
         # we don't write the points array because it's a 0 length array as d = 0
         X.tofile(f)
+
+def read_matrix_from_binary(file):
+        
+    header_format = "qqq"  # Format for long long (n, m, d)
+    alignment = 8  # Assume double alignment (sizeof(double) = 8 bytes)
+    
+    header_format = "qqq"  # Format for long long (n, m, d)
+    # Serialize the header
+    header_size = struct.calcsize(header_format)
+    # Read the first 24 bytes (3 long long values, 8 bytes each)
+    data = file.read(24)
+    
+    if len(data) < 24:
+        raise ValueError("File is too small to contain 3 long long numbers.")
+    
+    # Unpack the data as three long long integers ('q' format specifier)
+    n, m, d = struct.unpack(header_format, data)
+    alignment = 8  # Assume double alignment (sizeof(double) = 8 bytes)
+    
+    # Serialize the header
+    header_size = struct.calcsize(header_format)
+    aligned_header_size = round_up(header_size, alignment)
+    padding_length = aligned_header_size - header_size
+    file.read(padding_length)
+
+    # Calculate the size of the matrix
+    matrix_size = n * n * 8  # Each double is 8 bytes
+
+    # Read the matrix data
+    matrix_data = file.read(matrix_size)
+    
+    if len(matrix_data) < matrix_size:
+        raise ValueError("File does not contain enough data for the matrix.")
+    
+    # Convert the binary data to a numpy array
+    X = np.frombuffer(matrix_data, dtype=np.float64).reshape((n, n))
+    
+    return X
