@@ -2,3 +2,4 @@ numpy
 jinja2-cli
 torch
 numpy
+matplotlib
