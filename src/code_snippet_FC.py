@@ -75,8 +75,10 @@ def KSD_loss_RBF(X, nbatch, nsamples, dim):
     return stein_kernel
 
 
-def sample_from_mixture(n_samples, dim):
+def sample_from_mixture(n_samples, dim, seed=None):
     """Generates samples from the target Gaussian mixture model."""
+    if seed is not None:
+        torch.manual_seed(seed)
     means = torch.tensor([[-1.5, 0.0], [1.5, 0.0]])    # (nMix, nDim)
     covs = torch.stack([torch.eye(2), torch.eye(2)])    # (nMix, nDim, nDim)
     weights = torch.tensor([0.5, 0.5])    # (nMix,)
@@ -89,32 +91,29 @@ def sample_from_mixture(n_samples, dim):
 
     return sampled_points
 
-nbatch = 1  # Number of batches
+if __name__ == '__main__':
+    nbatch = 1  # Number of batchess
+    parser = argparse.ArgumentParser()
+    parser.add_argument('nsamples', type=int)
+    parser.add_argument('dim', type=int)
+    parser.add_argument('m', type=int)
+    parser.add_argument('points_file', type=str)
+    parser.add_argument('--seed', type=int, default=42)
 
+    args = parser.parse_args()
 
-parser = argparse.ArgumentParser()
-parser.add_argument('nsamples', type=int)
-parser.add_argument('dim', type=int)
-parser.add_argument('m', type=int)
-parser.add_argument('points_file', type=str)
-parser.add_argument('--seed', type=int, default=42)
+    nsamples = args.nsamples # Number of samples per batch
+    dim = args.dim # Dimensionality of each sample
+    m = args.m # m as pass into L2
 
-args = parser.parse_args()
+    X = sample_from_mixture(nsamples, dim, seed=42)
+    print(X)
 
-nsamples = args.nsamples # Number of samples per batch
-dim = args.dim # Dimensionality of each sample
-m = args.m # m as pass into L2
+    v = KSD_loss_RBF(X, nbatch, nsamples, dim)
 
-torch.manual_seed(args.seed)
+    w = v[0].numpy().astype(np.float64)
 
-
-X = sample_from_mixture(nsamples, dim)
-
-v = KSD_loss_RBF(X, nbatch, nsamples, dim)
-
-w = v[0].numpy().astype(np.float64)
-
-#save_matrix_to_binary(filename, M, n, m) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
-save_matrix_to_binary(args.points_file, w, nsamples, m)
+    #save_matrix_to_binary(filename, M, n, m) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
+    save_matrix_to_binary(args.points_file, w, nsamples, m)
 
 
