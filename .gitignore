@@ -22,3 +22,4 @@ venv/
 .gdb_history
 output/
 output-*/
+**/__pycache__/
