@@ -103,3 +103,9 @@ for i in range(args.iterations):
         points[old] = other_points[new]
         other_points[new] = t
 
+print(f"Index of best points: {' '.join(map(str, best_points))}")
+print(f"linf discrepancy: {best_linf}")
+print(f"======= points below ======")
+
+for p in raw_points[best_points]:
+    print(*map(lambda x: f"{x:.8g}", p.numpy()))
