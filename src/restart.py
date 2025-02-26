@@ -45,10 +45,10 @@ if args.timeout:
 
 try:
     print(f"Generating stein kernel with {args.n} points")
-    subprocess.run(['../src/code_snippet_FC.py', str(args.n), str(args.d), str(args.m), join(temp_dir, 'points.p'), '--seed', {args.seed}], check=True)
+    subprocess.run(['../src/code_snippet_FC.py', str(args.n), str(args.d), str(args.m), join(temp_dir, 'points.p'), join(temp_dir, 'raw_points.p'), '--seed', str(args.seed)], check=True)
     for i in range(args.num_global_restart):
         try:
-            p = subprocess.Popen([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)])
+            p = subprocess.Popen([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), join(temp_dir, 'raw_points.p'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)])
             p.wait()
 
         finally:

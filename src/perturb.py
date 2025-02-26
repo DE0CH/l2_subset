@@ -4,8 +4,10 @@ import subprocess
 import random
 import re
 import sys
-from utils import read_matrix_from_binary
+from utils import read_matrix_from_binary, read_points_from_bianry
 import numpy as np
+from code_snippet_FC import KSD_loss_RBF
+import torch
 
 def read_numbers_from_file(filename):
     with open(filename, "rb") as file:  # Open the file in binary mode
@@ -20,14 +22,15 @@ def read_numbers_from_file(filename):
         
         return n, m, d
     
-def calc_sum(points, subset):
-    # points is a n x n matrix as numpy array, find the sum of a m x m submatrix chosen by subset
-    sub = points[np.ix_(subset, subset)]
-    return np.sum(sub)
+def calc_linf(points, subset):
+    sub_points = points[subset]
+    v = KSD_loss_RBF(sub_points, 1, len(subset), 2)
+    return v.mean(dim=(1, 2)).mean().item()
     
 
 parser = argparse.ArgumentParser()
 parser.add_argument('compiled_point_file', type=argparse.FileType('r'), help='Compiled Point file')
+parser.add_argument('raw_point_file', type=argparse.FileType('r'), help='Raw Point file')
 parser.add_argument('seed', type=int, help='Seed for random number generator')
 parser.add_argument('p', type=int, help="number of points to perturb")
 parser.add_argument('iterations', type=int, help='Number of iterations')
@@ -43,12 +46,13 @@ best_linf = 1
 n, m, d = read_numbers_from_file(args.compiled_point_file.name)
 
 matrix = read_matrix_from_binary(args.compiled_point_file.name)
+raw_points = torch.tensor(read_points_from_bianry(args.raw_point_file.name, n), dtype=torch.float32)
 
 best_linf = float('inf')
 for i in range(args.initial_population_size):
     print("Calculating initial population", i + 1)
     points = random.sample(list(range(n)), m)
-    ans = calc_sum(matrix, points)
+    ans = calc_linf(raw_points, points)
     if ans < best_linf:
         best_linf = ans
         best_points = points
@@ -79,7 +83,7 @@ for i in range(args.iterations):
         p.wait()
         if p.returncode != 0:
             raise subprocess.CalledProcessError(p.returncode, p.args)
-    new_linf = calc_sum(matrix, new_points)
+    new_linf = calc_linf(raw_points, new_points)
     print("linf discrepancy:", new_linf)
     print("perturbing for next iteration")
     if new_linf < best_linf:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import torch
 import numpy as np
-from utils import save_matrix_to_binary
+from utils import save_matrix_to_binary, save_points_to_binary
 import argparse
 import math
 
@@ -97,6 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('nsamples', type=int)
     parser.add_argument('dim', type=int)
     parser.add_argument('m', type=int)
+    parser.add_argument('matrix_file', type=str)
     parser.add_argument('points_file', type=str)
     parser.add_argument('--seed', type=int, default=42)
 
@@ -107,13 +108,13 @@ if __name__ == '__main__':
     m = args.m # m as pass into L2
 
     X = sample_from_mixture(nsamples, dim, seed=42)
-    print(X)
 
     v = KSD_loss_RBF(X, nbatch, nsamples, dim)
 
     w = v[0].numpy().astype(np.float64)
 
     #save_matrix_to_binary(filename, M, n, m) saves the matrix M (as a numpy 2D array) into the file format expected by the l2 code. We selected a m*m matrix from a n*n matrix by minimizing the sum of all entries.
-    save_matrix_to_binary(args.points_file, w, nsamples, m)
+    save_matrix_to_binary(args.matrix_file, w, nsamples, m)
+    save_points_to_binary(args.points_file, X.numpy().astype(np.float64))
 
 

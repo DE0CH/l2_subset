@@ -64,3 +64,12 @@ def read_matrix_from_binary(filename):
     X = np.frombuffer(matrix_data, dtype=np.float64).reshape((n, n))
     
     return X
+
+def save_points_to_binary(filename, points):
+    with open(filename, 'wb') as f:
+        points.tofile(f)
+
+def read_points_from_bianry(filename, n):
+    with open(filename, 'rb') as f:
+        buffer = f.read(n*2*8)
+    return np.frombuffer(buffer, dtype=np.float64).reshape((n, 2))
