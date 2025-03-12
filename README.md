@@ -12,6 +12,7 @@ cd ..
 
 1. Use restart.py
 ```bash
+cd build
 # make sure the cwd is build.
 ../src/restart.py ...
 ```
