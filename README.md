@@ -10,45 +10,13 @@ make
 cd ..
 ```
 
-The run scripts are separated into tro parts, one with pre-computation some data needed for all trials. When compiling with flag `-DCOMPUTE_MODE=1`, it computes the matrix (documentation needed what that actually is) and store it to disk. When compiling with flag `-DCOMPUTE_MODE=2`, it doesn't do much, but there are some ideas such as pre-computing the weights (documentation needed) so speed up starting time. 
-
-The second part is the running script for a trial, which has a random start, and it loads data from the the pre-computed data. More specifically, it actually mmap the data to conserve memory and improve startup time.
-
-1. Set variables
+1. Use restart.py
 ```bash
-export N=1000000
-export M=50
-export D=3
+# make sure the cwd is build.
+../src/restart.py ...
 ```
 
-1. Generate the points
-```bash
-build/gen_points "$D" points.txt "$N"
-```
-
-1. Pre-compute. This only needs to be run once for each N, M and D.
-```bash
-build/l2_subset_compile_matrix points.txt $M points.p
-```
-
-1. Run the trial, the trial number also serves at the seed for the code
-```bash
-trial=1
-build/l2_subset_from_compiled_matrix points.p $trial
-```
-
-### Other modes
-
-There are other modes (i.e. entry point) to run the algorithm. One useful entry is where you specify the starting subset. 
-
-Follow the same building instruction and the first two steps as above. For the third step, you can run
-
-```bash
-trial=1
-build/l2_subset_from_compiled_matrix_w_start_point points.p $trial 0 2 5 6 ...
-```
-
-i.e. you give the indexes (0-indexed) of the starting points. In the example above, you choose 0, 2, 5, 6th, ... points.
+Run it without argument for explanations for the variables
 
 ## FAQ
 
