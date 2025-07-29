@@ -44,11 +44,13 @@ if args.timeout:
     timer_thread.start()
 
 try:
-    print(f"Generating stein kernel with {args.n} points")
-    subprocess.run(['../src/code_snippet_FC.py', str(args.n), str(args.d), str(args.m), join(temp_dir, 'points.p'), join(temp_dir, 'raw_points.p'), '--seed', str(args.seed)], check=True)
+    print(f"generating point file with {args.n} points")
+    subprocess.run(['./gen_points', str(args.d), join(temp_dir, 'points.txt'), str(args.n)], check=True)
+    print(f"Compiling matrix")
+    subprocess.run(['./l2_subset_compile_matrix', join(temp_dir, 'points.txt'), str(args.m), join(temp_dir, 'points.p')], check=True)
     for i in range(args.num_global_restart):
         try:
-            p = subprocess.Popen([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), join(temp_dir, 'raw_points.p'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)])
+            p = subprocess.Popen([sys.executable, '-u', '../src/perturb.py', join(temp_dir, 'points.p'), join(temp_dir, 'points.txt'), join(temp_dir, 'scratch.txt'), str(random.randrange(0, 2**63)), str(args.p), str(args.number_local_restart), str(args.initial_population_size)])
             p.wait()
 
         finally:
