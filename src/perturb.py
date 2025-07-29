@@ -4,6 +4,10 @@ import subprocess
 import random
 import re
 import sys
+from utils import read_matrix_from_binary, read_points_from_bianry
+import numpy as np
+from code_snippet_FC import KSD_loss_RBF
+import torch
 import threading
 import time
 
@@ -19,7 +23,11 @@ def read_numbers_from_file(filename):
         n, m, d = struct.unpack('qqq', data)
         
         return n, m, d
-
+    
+def calc_linf(points, subset):
+    sub_points = points[subset]
+    v = KSD_loss_RBF(sub_points, 1, len(subset), 2)
+    return v.mean(dim=(1, 2)).mean().item()
 def timer():
     for i in range(1, 4):
         print(f"{i} second(s) elapsed")
@@ -27,9 +35,8 @@ def timer():
     
 
 parser = argparse.ArgumentParser()
-parser.add_argument('compiled_point_file', type=argparse.FileType('rb'), help='Compiled Point file. This is the output of l2_subset_compile_matrix')
-parser.add_argument('point_file', type=argparse.FileType('r'), help='Point file')
-parser.add_argument('scratch_file', type=argparse.FileType('w'), help='Scratch file. This will be used to store the subset of points that are selected for evaluating the linf discrepancy')
+parser.add_argument('compiled_point_file', type=argparse.FileType('r'), help='Compiled Point file')
+parser.add_argument('raw_point_file', type=argparse.FileType('r'), help='Raw Point file')
 parser.add_argument('seed', type=int, help='Seed for random number generator')
 parser.add_argument('p', type=int, help="number of points to perturb")
 parser.add_argument('iterations', type=int, help='Number of iterations')
@@ -43,30 +50,15 @@ print(f"Running with local perturbation. Seed: {args.seed}, p: {args.p}, Iterati
 best_l2 = 1
 best_linf = 1
 n, m, d = read_numbers_from_file(args.compiled_point_file.name)
-with open(args.point_file.name, 'r') as f:
-    points_lines = f.readlines()[1:]
 
-def calculate_linf(points):
-    with open(args.scratch_file.name, "w") as f:
-        f.write(f'{d} {m} 0.0\n')
-        for point in points:
-            f.write(f"{points_lines[point]}")
-    if d >= 9:
-        p = subprocess.run(["./ta_delta", args.scratch_file.name], capture_output=True)
-        delta = float(p.stdout.decode('utf-8').split('\n')[-2])
-        p = subprocess.run(["./ta_bardelta", args.scratch_file.name], capture_output=True)
-        bardelta = float(p.stdout.decode('utf-8').split('\n')[-2])
-        ans = max(delta, bardelta)
-    else:
-        p = subprocess.run(["./linf_disc", args.scratch_file.name], capture_output=True)
-        ans = float(p.stdout.decode('utf-8'))
-    return ans
+matrix = read_matrix_from_binary(args.compiled_point_file.name)
+raw_points = torch.tensor(read_points_from_bianry(args.raw_point_file.name, n), dtype=torch.float32)
 
-best_linf = 2 # the maximum is actually 1, but we set it to 2 to ensure that the first population is better
+best_linf = float('inf')
 for i in range(args.initial_population_size):
     print("Calculating initial population", i + 1)
     points = random.sample(list(range(n)), m)
-    ans = calculate_linf(points)
+    ans = calc_linf(raw_points, points)
     if ans < best_linf:
         best_linf = ans
         best_points = points
@@ -116,7 +108,7 @@ for i in range(args.iterations):
         print("Starting a timer (it prints out a number every second, if it disappears without any more output, it means that the program has been forcefully exited, most likely due to a timeout on the cluster)")
         timer_thread = threading.Thread(target=timer)
         timer_thread.start()
-    new_linf = calculate_linf(new_points)
+    new_linf = calc_linf(raw_points, new_points)
 
     print("linf discrepancy:", new_linf)
     if new_linf < best_linf:
@@ -139,6 +131,12 @@ for i in range(args.iterations):
         points[old] = other_points[new]
         other_points[new] = t
 
+print(f"Index of best points: {' '.join(map(str, best_points))}")
+print(f"linf discrepancy: {best_linf}")
+print(f"======= points below ======")
+
+for p in raw_points[best_points]:
+    print(*map(lambda x: f"{x:.8g}", p.numpy()))
 
 if should_raise_keyboard_interrupt:
     print("KeyboardInterrupt raised, exiting with errors")
@@ -147,4 +145,3 @@ if should_raise_keyboard_interrupt:
 if should_raise_none_zero_return_code:
     print("Non-zero return code raised, exiting with errors")
     raise subprocess.CalledProcessError(p.returncode, p.args)
-
