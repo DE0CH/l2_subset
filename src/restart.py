@@ -26,7 +26,7 @@ parser.add_argument('num_global_restart', type=int, help='Number of global resta
 parser.add_argument('initial_population_size', type=int, help='Number of initial population for each global restart. We randomly sample this many populations and select the best one to work with.')
 
 parser.add_argument('seed', type=int, help='Seed for random number generator')
-parser.add_argument('--timeout', type=int, help='Timeout for the entire process')
+parser.add_argument('--timeout', type=float, help='Timeout for the entire process')
 args = parser.parse_args()
 
 random.seed(args.seed)
